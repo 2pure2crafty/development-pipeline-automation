@@ -293,15 +293,20 @@ def write_startup_context(agent: str, feature: str, cycle_id: str,
         kickback_section = (f"\n## Kick-back context\n\n{kickback_context}\n"
                             if kickback_context else "")
 
+    agent_display = agent.replace("-", " ").title()
     ctx = f"""# Startup Context
 
+Agent:        HDS-{agent} ({agent_display} agent)
 Feature:      {feature}
 Cycle ID:     {cycle_id}
 Cycle branch: {cycle_branch}
 {docs}
 {kickback_section}
-Read your CLAUDE.md for full instructions, then begin your work.
-Update pipeline-state.md to IN PROGRESS as your first action.
+Your first output must be a single identification line:
+  "HDS-{agent} agent online. Feature: {feature}."
+
+Then read your CLAUDE.md for full instructions and begin your work.
+Update pipeline-state.md to IN PROGRESS as your second action.
 """
     ctx_path.write_text(ctx)
     log(f"Wrote startup context for {agent}: feature={feature}, cycle={cycle_id}")
@@ -311,6 +316,8 @@ def start_agent(agent: str) -> bool:
     """Start a tmux session for the named agent and launch Claude."""
     session = f"HDS-{agent}"
     agent_dir = str(AGENT_ROOT / agent)
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    window_name = f"HDS-{agent}-{today}"
 
     # Kill any existing session cleanly
     subprocess.run(["tmux", "kill-session", "-t", session],
@@ -326,9 +333,13 @@ def start_agent(agent: str) -> bool:
         log(f"ERROR: failed to create tmux session {session}: {result.stderr}")
         return False
 
+    # Name the window so it's identifiable at a glance
+    subprocess.run(["tmux", "rename-window", "-t", f"{session}:0", window_name],
+                   capture_output=True)
+
     # Launch Claude in the session
     subprocess.run(["tmux", "send-keys", "-t", session, "claude", "Enter"])
-    log(f"Started agent {agent} in tmux session {session}")
+    log(f"Started agent {agent} in tmux session {session} (window: {window_name})")
     return True
 
 
