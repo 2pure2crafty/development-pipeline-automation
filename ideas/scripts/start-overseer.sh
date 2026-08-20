@@ -17,7 +17,9 @@ fi
 touch "$DAEMON_ENABLED_FLAG"
 echo "daemon-enabled flag created."
 
-# Start the daemon
+# Start the daemon as the current user (patch).
+# Requires: patch is in the hdp group, staging/docs is group-writable.
+# Run as: sudo usermod -a -G hdp patch && sudo chmod -R g+w /var/www/hdp/staging/docs/
 python3 "$OVERSEER_PY" >> "$LOG" 2>&1 &
 echo "Overseer daemon started (PID: $!)."
 echo "Log: tail -f $LOG"
