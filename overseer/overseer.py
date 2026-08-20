@@ -338,13 +338,14 @@ def start_agent(agent: str) -> bool:
     subprocess.run(["tmux", "rename-window", "-t", f"{session}:0", window_name],
                    capture_output=True)
 
-    # Launch Claude in the session
-    subprocess.run(["tmux", "send-keys", "-t", session, "claude", "Enter"])
+    # Launch Claude in auto permission mode
+    subprocess.run(["tmux", "send-keys", "-t", session,
+                    "claude --permission-mode auto", "Enter"])
 
     # Send /remote-control after Claude finishes loading (60 s).
-    # Done in a background subprocess so it doesn't block the poll loop.
+    # Two Enters: first submits /remote-control, second clears the buffer.
     subprocess.Popen(
-        f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter",
+        f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter Enter",
         shell=True
     )
 
@@ -410,12 +411,14 @@ def ensure_overseer_session():
     # Rename the window to include today's date
     subprocess.run(["tmux", "rename-window", "-t", f"{session}:0", window_name])
 
-    # Launch Claude
-    subprocess.run(["tmux", "send-keys", "-t", session, "claude", "Enter"])
+    # Launch Claude in auto permission mode
+    subprocess.run(["tmux", "send-keys", "-t", session,
+                    "claude --permission-mode auto", "Enter"])
 
     # Wait for Claude to fully initialise before sending the remote-control command
     time.sleep(60)
     subprocess.run(["tmux", "send-keys", "-t", session, "/remote-control", "Enter"])
+    subprocess.run(["tmux", "send-keys", "-t", session, "", "Enter"])
 
     log(f"HDS-overseer started (window: {window_name}) with /remote-control.")
 
@@ -512,17 +515,25 @@ def handle_state(state: dict, config: dict, items: list,
         items = read_queue()
         next_item = next_queued_item(items)
         if next_item:
-            log(f"Level 5: product agent complete. Starting pipeline for: {next_item['name']}")
+            log(f"Level 5: product agent complete. Starting pipeline for: {next_item['feature']}")
             _start_feature(next_item, cycle, config, level)
         else:
-            # Product agent wrote nothing to build-queue (shouldn't happen, but safe)
-            log("Level 5: product agent complete but no QUEUED items in build-queue. Checking backlog.")
-            pb_items = read_product_backlog()
-            next_pb = next((i for i in pb_items if i["status"] == "QUEUED"), None)
-            if next_pb:
-                _start_product_agent(next_pb, cycle, config)
+            # Before declaring cycle complete, check for features already active in the pipeline.
+            # A race can occur where the product agent writes COMPLETE to pipeline-state.md after
+            # the daemon has already called _start_feature for the item it produced -- the second
+            # poll then sees product/COMPLETE again but the item is now ACTIVE, not QUEUED.
+            active_items = [i for i in items if i["status"] == "ACTIVE"]
+            if active_items:
+                log(f"Level 5: product agent complete but features still active: "
+                    f"{[i['feature'] for i in active_items]}. Monitoring.")
             else:
-                _cycle_complete(cycle, config)
+                log("Level 5: product agent complete but no QUEUED or ACTIVE items. Checking backlog.")
+                pb_items = read_product_backlog()
+                next_pb = next((i for i in pb_items if i["status"] == "QUEUED"), None)
+                if next_pb:
+                    _start_product_agent(next_pb, cycle, config)
+                else:
+                    _cycle_complete(cycle, config)
         return time.time()
 
     # --- Check for stuck agent ---

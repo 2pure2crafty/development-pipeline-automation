@@ -233,3 +233,41 @@ log(f"ERROR in main loop: {e}\n{tb}")
 ```
 
 This is now in the daemon. On a new project, add it from the start.
+
+---
+
+## 12. Product/COMPLETE handler declares cycle done while features are active
+
+**Problem:** When the product agent finishes, it writes "Stage Status: COMPLETE" to
+pipeline-state.md. The daemon sees this, kills the product session, and starts the
+features agent via `_start_feature` -- which updates pipeline-state.md to
+"features / IN PROGRESS" and sets the build-queue item to ACTIVE.
+
+However, in some timing windows the product agent's COMPLETE write lands in
+pipeline-state.md AFTER the daemon has already called `_start_feature`. On the next
+60-second poll, the daemon sees "product / COMPLETE" again, re-enters the handler,
+and calls `next_queued_item`. This time the item is ACTIVE (not QUEUED), so
+`next_queued_item` returns None. The daemon then checks the product backlog, finds
+nothing QUEUED there either, and incorrectly declares the cycle complete -- even
+though the features agent is actively running.
+
+The same logic also had a KeyError: `next_item['name']` should be `next_item['feature']`
+(matching the key produced by `read_queue`).
+
+**Fix:** Before declaring cycle complete from the product/COMPLETE path, check whether
+any build-queue items are ACTIVE. If so, features are still in flight -- log and
+return without escalating.
+
+```python
+active_items = [i for i in items if i["status"] == "ACTIVE"]
+if active_items:
+    log(f"Level 5: product agent complete but features still active: ...")
+else:
+    # safe to check backlog and potentially call _cycle_complete
+```
+
+Also fix the KeyError: use `next_item['feature']`, not `next_item['name']`.
+
+**Generalising:** Any time you add a "nothing left to do" check to the daemon, include
+ACTIVE items in the definition of "things in progress". An empty QUEUED list is not
+the same as an empty pipeline.
