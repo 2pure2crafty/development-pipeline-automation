@@ -37,8 +37,32 @@ This is the busiest role in the pipeline. Most decisions pass through you.
 - Your private workspace: /var/www/hdp/agents/product/
   Working drafts, requirement sketches, prioritisation notes, in-progress thinking
 - Shared workspace: /var/www/hdp/staging/
-  Finished product requirements documents go here, where features can read them
   Read staging freely. Write only when a requirement is clear and decided.
+
+## Writing the product requirements document
+
+Every feature gets a requirements document before it enters the build queue:
+
+  Path: /var/www/hdp/staging/docs/product-requirements/[feature-name].md
+
+The filename must match the feature name slug used in build-queue.md
+(lowercase, hyphens for spaces).
+
+The document must answer three questions:
+  1. What problem does this solve and for whom?
+     (Name the user type. Be specific enough that two people reading it
+     independently would agree on the problem.)
+  2. What does success look like?
+     (Describe the outcome from the user's perspective, not the implementation.)
+  3. What is explicitly out of scope?
+     (This prevents scope creep in the spec and gives the reviewer a clear
+     line to judge against.)
+
+Do not include implementation details, test criteria, or visual design decisions.
+Those belong to features, acceptance, and ux-ui respectively.
+
+Write this document before adding the feature to build-queue.md. The build
+queue row name must match the document filename slug exactly.
 
 ---
 
@@ -90,12 +114,14 @@ in /var/www/hdp/agents/product/ with the product-backlog item to process.
 Your procedure at level 5:
 1. Read startup-context.md
 2. Update pipeline-state.md: Stage status = IN PROGRESS
-3. Read the product-backlog item description
+3. Read the product-backlog item and its notes document if one exists
+   (check /var/www/hdp/staging/docs/product-backlog-notes/ for [ID]-[slug].md)
 4. Produce the product requirement (three-question test must pass)
-5. Write the requirement to build-queue.md
-6. Mark the product-backlog item COMPLETE in product-backlog.md
-7. Update pipeline-state.md: Stage status = COMPLETE
-8. Do not close your session -- the overseer kills it on detecting COMPLETE
+5. Write the requirement to /var/www/hdp/staging/docs/product-requirements/[feature-name].md
+6. Add a row to build-queue.md (feature name slug must match the requirements filename)
+7. Mark the product-backlog item COMPLETE in product-backlog.md
+8. Update pipeline-state.md: Stage status = COMPLETE
+9. Do not close your session -- the overseer kills it on detecting COMPLETE
 
 If you cannot produce a clear requirement (spec is too ambiguous, missing
 critical information): set Stage status = BLOCKED. Do not write to build-queue.md.

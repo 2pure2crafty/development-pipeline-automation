@@ -99,7 +99,11 @@ then launches a Claude session here.
 4. Create the feature branch off the cycle branch before writing any code
 
 **When your build is complete:**
+- Run the API audit: python3 /var/www/hdp/bin/api-audit.py (expect ALL CLEAN)
 - Write deployment-note.md
+- Check out the feature branch in the staging working tree so the testing
+  agents can run against it at https://staging.hittadittsverige.se:
+    sudo -u hdp git -C /var/www/hdp/staging checkout feature/[name]
 - Update pipeline-state.md: Stage status = COMPLETE
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 

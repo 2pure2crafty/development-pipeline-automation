@@ -14,7 +14,8 @@ shared workspace until it has been approved by Patch.
 
 ## What you do
 
-- Read product requirements from the shared workspace
+- Read the product requirements document listed in startup-context.md
+  (always at /var/www/hdp/staging/docs/product-requirements/[feature-name].md)
 - Write detailed technical specs: data model changes, API endpoints, UI behaviour,
   migration requirements
 - Update the build phase document in staging with what is next to be built
@@ -108,8 +109,10 @@ from the acceptance agent stage. Dev should not be touched until the spec is
 corrected.
 
 Feedback from product-reviewer will be in:
-  /var/www/hdp/staging/docs/dev-inbox/acceptance-fixes.md (if spec-level)
-  or delivered via Patch directly.
+  /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
+
+Read it, update build-phase.md to reflect the corrected spec, then signal
+COMPLETE so the overseer restarts the pipeline from acceptance.
 
 ---
 
@@ -120,13 +123,14 @@ then launches a Claude session here.
 
 **First actions on every session start:**
 1. Read startup-context.md from this directory
-2. Read the documents listed in it
-3. Update pipeline-state.md: Stage status = IN PROGRESS
+2. Read the product requirements document listed under "Requirements:" in startup-context.md
+3. If kicked back from reviewer: read reviewer-feedback.md before touching the spec
+4. Update pipeline-state.md: Stage status = IN PROGRESS
 
 **When your work is complete:**
-- Update pipeline-state.md: Stage status = COMPLETE
 - Write your spec to /var/www/hdp/staging/docs/dev-inbox/build-phase.md
 - Fill in the depends-on field for this feature in build-queue.md
+- Update pipeline-state.md: Stage status = COMPLETE
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.

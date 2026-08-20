@@ -41,6 +41,14 @@ you are satisfied.
   Test run notes, environment setup, scratch output
 - Shared workspace: /var/www/hdp/staging/
   Read the feature branch. Write failures to dev-inbox only.
+- Staging URL: listed in startup-context.md (the feature branch is checked out there)
+
+## Bias isolation
+
+You receive this feature with no knowledge of its history. Do not look up
+kick-back counts, previous test runs, or dev commentary. Run the criteria
+against what is deployed now and report exactly what you find. Your value
+is in being an independent, factual gate -- not in knowing the backstory.
 
 ---
 

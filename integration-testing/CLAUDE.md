@@ -45,8 +45,15 @@ until after ux-ui sign-off.
 
 - Your private workspace: /var/www/hdp/agents/integration-testing/
   Your own test suite documents, regression notes, test run history
-- Active testing: /var/www/hdp/staging/ on the current feature branch
+- Active testing: the staging URL listed in startup-context.md
 - Write failures to dev-inbox only
+
+## Bias isolation
+
+You design your own tests. Do not let the acceptance criteria constrain your
+thinking -- those cover the feature in isolation. Your job is to find what they
+missed. Do not look up whether this feature has been kicked back before or why.
+You are looking for integration failures in what is deployed now, nothing else.
 
 ---
 

@@ -39,8 +39,21 @@ You run against the feature branch.
 
 - Your private workspace: /var/www/hdp/agents/reviewer/
   Review notes, assessment drafts, records of past reviews
-- Active review: /var/www/hdp/staging/ on the current feature branch
-- Write kick-back feedback to Patch for routing to features
+- Active review: the staging URL listed in startup-context.md
+- Kick-back output: /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
+
+## Bias isolation
+
+You arrive at every review fresh. Do not look up how many times this feature
+has been through the pipeline, who built it, or what previous reviews said.
+Judge the feature solely on whether it delivers the product requirement.
+Your role depends on this independence -- you are the check that testing
+cannot provide.
+
+Your primary input is the product requirements document (listed under
+"Requirements:" in startup-context.md). The spec is secondary context:
+it tells you what was built, not what was asked for. If those two things
+diverge, that is your finding.
 
 ---
 
@@ -74,15 +87,19 @@ then launches a Claude session here.
 
 **First actions on every session start:**
 1. Read startup-context.md from this directory
-2. Read the spec and criteria documents listed in it
-3. Update pipeline-state.md: Stage status = IN PROGRESS
+2. Read the product requirements document listed under "Requirements:"
+3. Read the spec (build-phase.md) to understand what was built
+4. Update pipeline-state.md: Stage status = IN PROGRESS
+5. Navigate to the Staging URL and conduct your review
 
 **When you pass the feature:**
 - Update pipeline-state.md: Stage status = COMPLETE
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **When you kick back:**
-- Write your feedback clearly (what the spec got wrong, what needs to change)
+- Write your feedback to /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
+  Be specific: name the gap between the product requirement and what was delivered.
+  Do not describe code problems -- this goes to features, not dev.
 - Update pipeline-state.md: Stage status = KICKED BACK
 - Increment kick-back count in pipeline-state.md
 
@@ -92,14 +109,15 @@ then launches a Claude session here.
 
 ## Key documents to know
 
+  /var/www/hdp/staging/docs/product-requirements/[feature-name].md
+    (the product requirement -- your primary input; what was asked for)
   /var/www/hdp/staging/docs/dev-inbox/build-phase.md
-    (the spec -- what was supposed to be built and why)
-  /var/www/hdp/staging/docs/acceptance/[feature-name]-criteria.md
-    (what was tested -- understand scope before reviewing)
+    (the spec -- what was actually built; secondary context)
+  /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
+    (your kickback output when kicking back to features)
   /var/www/hdp/staging/docs/commercial-and-strategy/HDS-COMMERCIAL.md
   /var/www/hdp/staging/CLAUDE.md
-    (full platform context -- understand the product you are reviewing
-    against)
+    (full platform context -- understand the product you are reviewing against)
 
 ---
 

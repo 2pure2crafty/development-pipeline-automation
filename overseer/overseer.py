@@ -230,23 +230,71 @@ def update_queue_status(feature_id: str, new_status: str):
 
 def write_startup_context(agent: str, feature: str, cycle_id: str,
                           cycle_branch: str, kickback_context: str = ""):
-    """Write startup-context.md to the agent's directory."""
+    """Write startup-context.md to the agent's directory.
+
+    Each stage receives only the documents relevant to its role.
+    Testing and review stages receive no kick-back history so they
+    assess the feature with fresh eyes.
+    """
     agent_dir = AGENT_ROOT / agent
     ctx_path = agent_dir / "startup-context.md"
     feature_safe = feature.lower().replace(" ", "-")
-    criteria_path = f"/var/www/hdp/staging/docs/acceptance/{feature_safe}-criteria.md"
 
-    kickback_section = ""
-    if kickback_context:
-        kickback_section = f"\n## Kick-back context\n\n{kickback_context}\n"
+    spec_path       = "/var/www/hdp/staging/docs/dev-inbox/build-phase.md"
+    criteria_path   = f"/var/www/hdp/staging/docs/acceptance/{feature_safe}-criteria.md"
+    requirements_path = f"/var/www/hdp/staging/docs/product-requirements/{feature_safe}.md"
+    staging_url     = "https://staging.hittadittsverige.se"
+
+    # Stage-specific document pointers.
+    # Kick-back context is only passed to agents that are fixing something
+    # (dev, features). Testing and review agents receive no history so they
+    # judge what is in front of them without bias.
+    if agent == "features":
+        docs = f"Requirements: {requirements_path}"
+        kickback_section = (f"\n## Kick-back context\n\n{kickback_context}\n"
+                            if kickback_context else "")
+    elif agent == "acceptance":
+        docs = (f"Spec:             {spec_path}\n"
+                f"Write criteria to: {criteria_path}")
+        kickback_section = ""
+    elif agent == "dev":
+        docs = (f"Spec:          {spec_path}\n"
+                f"Criteria:      {criteria_path}\n"
+                f"Feature branch: feature/{feature_safe}\n"
+                f"Staging URL:   {staging_url}")
+        kickback_section = (f"\n## Kick-back context\n\n{kickback_context}\n"
+                            if kickback_context else "")
+    elif agent == "testing-staging":
+        docs = (f"Criteria (primary):  {criteria_path}\n"
+                f"Spec (context only): {spec_path}\n"
+                f"Staging URL:         {staging_url}")
+        kickback_section = ""
+    elif agent == "integration-testing":
+        docs = (f"Spec:        {spec_path}\n"
+                f"Criteria:    {criteria_path}\n"
+                f"Staging URL: {staging_url}")
+        kickback_section = ""
+    elif agent == "reviewer":
+        docs = (f"Requirements (primary): {requirements_path}\n"
+                f"Spec (secondary):       {spec_path}\n"
+                f"Staging URL:            {staging_url}")
+        kickback_section = ""
+    elif agent == "ux-ui":
+        docs = (f"Spec:        {spec_path}\n"
+                f"Staging URL: {staging_url}")
+        kickback_section = ""
+    else:
+        docs = (f"Spec:     {spec_path}\n"
+                f"Criteria: {criteria_path}")
+        kickback_section = (f"\n## Kick-back context\n\n{kickback_context}\n"
+                            if kickback_context else "")
 
     ctx = f"""# Startup Context
 
-Feature: {feature}
-Cycle ID: {cycle_id}
+Feature:      {feature}
+Cycle ID:     {cycle_id}
 Cycle branch: {cycle_branch}
-Spec: /var/www/hdp/staging/docs/dev-inbox/build-phase.md
-Criteria: {criteria_path}
+{docs}
 {kickback_section}
 Read your CLAUDE.md for full instructions, then begin your work.
 Update pipeline-state.md to IN PROGRESS as your first action.
@@ -585,7 +633,7 @@ def _kickback_file_for(stage: str) -> str:
     mapping = {
         "testing-staging":    "/var/www/hdp/staging/docs/dev-inbox/acceptance-fixes.md",
         "integration-testing": "/var/www/hdp/staging/docs/dev-inbox/integration-fixes.md",
-        "reviewer":           "Patch/reviewer output",
+        "reviewer":           "/var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md",
         "ux-ui":              "/var/www/hdp/staging/docs/dev-inbox/ux-fixes.md",
     }
     return mapping.get(stage, "see agent output")
