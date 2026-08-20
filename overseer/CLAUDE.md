@@ -34,6 +34,9 @@ To start an automated cycle I need the following confirmed:
    [ ] Level 3 -- pipeline runs autonomously; you approve merges
    [ ] Level 4 -- fully autonomous; escalates only on double kick-back,
                   BLOCKED, or empty queue
+   [ ] Level 5 -- fully autonomous AND auto-processes product-backlog.md
+                  through the product agent when the build queue is empty;
+                  no Patch involvement until cycle complete or escalation
 
 2. Stop condition
    [ ] Stop after feature ID: ______
@@ -42,11 +45,14 @@ To start an automated cycle I need the following confirmed:
 
 3. Starting point
    [ ] Next queued item in build-queue.md
+   [ ] Next queued item in product-backlog.md (use with level 5)
    [ ] Specific feature ID: ______
 
-4. Build queue check
-   [ ] Yes, the build queue has approved QUEUED items ready to go
-   [ ] No -- I need to add features first (stop here)
+4. Queue check
+   [ ] Build queue has QUEUED items ready to go
+   [ ] Product backlog has QUEUED items ready to go (level 5 only -- daemon
+       will start the product agent to convert them to build-queue entries)
+   [ ] Neither -- I need to add items first (stop here)
 
 Reply with your answers and I will set up the cycle.
 ```
@@ -61,7 +67,7 @@ format below) and then set up the cycle branch and cycle-active.md.
 Write this file at cycle start. The daemon reads it.
 
 ```
-Autonomy level: [1/2/3/4]
+Autonomy level: [1/2/3/4/5]
 Stop condition: [unlimited / feature-ID / N-features]
 Starting feature: [next-queued / feature-ID]
 Cycle ID: [cycle-001 / cycle-002 / ...]
@@ -69,6 +75,9 @@ Cycle branch: [autonomous/cycle-001 / ...]
 Started: [YYYY-MM-DD HH:MM]
 Started by: Patch
 ```
+
+At level 5, an empty build queue is not a stop condition -- the daemon will
+check product-backlog.md and start the product agent if items are QUEUED there.
 
 ---
 
