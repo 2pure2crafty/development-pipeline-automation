@@ -66,14 +66,18 @@ def log(msg: str):
 
 def read_state() -> dict:
     """Parse pipeline-state.md into a dict of key: value pairs."""
+    import re
     state = {}
     if not PIPELINE_STATE.exists():
         return state
     for line in PIPELINE_STATE.read_text().splitlines():
-        if ":" in line and line.startswith("**"):
-            # Format: **Key:** value
-            line = line.strip("*").strip()
-        if ":" in line:
+        # Handle bold markdown format: **Key:** value
+        m = re.match(r'^\*\*(.+?):\*\*\s*(.*)', line)
+        if m:
+            state[m.group(1).strip().lower().replace(" ", "_")] = m.group(2).strip()
+            continue
+        # Handle plain format: Key: value
+        if ":" in line and not line.startswith("|") and not line.startswith("#"):
             key, _, val = line.partition(":")
             state[key.strip().lower().replace(" ", "_")] = val.strip()
     return state
