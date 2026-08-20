@@ -1,0 +1,20 @@
+# Runtime files -- generated during pipeline operation, not source
+overseer/overseer.log
+overseer/overseer.pid
+overseer/daemon-enabled
+overseer/escalation.md
+overseer/overseer-restart.md
+overseer/current-config.md
+
+# Startup context files written per-cycle by the daemon
+*/startup-context.md
+
+# Agent private working files (logs, drafts, scratch)
+ideas/ideas-log.md
+ideas/ideas-scratch.md
+planning/planning-log.md
+planning/planning-scratch.md
+
+# Python bytecode
+__pycache__/
+*.pyc
