@@ -25,4 +25,8 @@ sleep 60
 # Send /remote-control so the session is remotely accessible
 tmux send-keys -t "$SESSION" "/remote-control" Enter
 
+# Give remote-control a moment to activate, then prompt the agent to introduce itself
+sleep 5
+tmux send-keys -t "$SESSION" "Read your CLAUDE.md and introduce yourself." Enter
+
 echo "Done. Attach with: tmux attach -t ${SESSION}"
