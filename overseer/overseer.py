@@ -19,6 +19,7 @@ import subprocess
 import datetime
 import signal
 import json
+import traceback
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -339,6 +340,14 @@ def start_agent(agent: str) -> bool:
 
     # Launch Claude in the session
     subprocess.run(["tmux", "send-keys", "-t", session, "claude", "Enter"])
+
+    # Send /remote-control after Claude finishes loading (60 s).
+    # Done in a background subprocess so it doesn't block the poll loop.
+    subprocess.Popen(
+        f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter",
+        shell=True
+    )
+
     log(f"Started agent {agent} in tmux session {session} (window: {window_name})")
     return True
 
@@ -957,9 +966,10 @@ def main():
                 ensure_overseer_session()
 
         except Exception as e:
-            log(f"ERROR in main loop: {e}")
+            tb = traceback.format_exc()
+            log(f"ERROR in main loop: {e}\n{tb}")
             escalate("Overseer daemon encountered an unhandled exception.",
-                     str(e))
+                     f"{e}\n\n{tb}")
 
         time.sleep(POLL_INTERVAL)
 

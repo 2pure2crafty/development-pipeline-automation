@@ -166,3 +166,70 @@ For complex product-backlog items, also write a companion note at:
 
 This gives the product agent enough context to write a good requirement
 without making assumptions.
+
+---
+
+## 9. Group membership doesn't activate in existing sessions
+
+**Problem:** After running `sudo usermod -a -G hdp patch`, the change takes
+effect for NEW login shells only. Any tmux session (including the always-on
+HDS-ideas session) that was already running before the usermod will not see
+the new group, even after the user logs in again elsewhere. Running the daemon
+from such a session will fail with "Permission denied" on group-owned files
+even though `id` on a fresh terminal shows the group correctly.
+
+**Fix:** Use `sg hdp` to execute the daemon command with the group active,
+regardless of what the current session's group list looks like:
+
+```bash
+sg hdp -c "python3 '$OVERSEER_PY' >> '$LOG' 2>&1 &"
+```
+
+This is now the default in `start-overseer.sh`. On a fresh project, add it
+from the start so you never depend on group inheritance being active.
+
+The always-on HDS-ideas session will also lack the group until it is
+restarted. If the ideas agent ever needs to write to group-owned files
+directly, restart the session after the usermod.
+
+---
+
+## 10. Pipeline agents need /remote-control to run autonomously
+
+**Problem:** The daemon starts each pipeline agent with `claude`, but Claude
+Code starts in interactive mode and will prompt for approval on file edits and
+shell commands. In an unattended tmux session, nobody is there to approve them.
+The agent silently stalls.
+
+**Fix:** Send `/remote-control` to each agent session 60 seconds after
+launching Claude (same timing rule as pitfall #5). The daemon now does this
+automatically via a background subprocess in `start_agent()`:
+
+```python
+subprocess.Popen(
+    f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter",
+    shell=True
+)
+```
+
+If you add a new always-on session outside the daemon, follow the same pattern
+as `start-planning.sh`: sleep 60 then send `/remote-control`.
+
+---
+
+## 11. Main loop exceptions swallow the traceback
+
+**Problem:** The daemon's `except Exception as e` handler logged only `str(e)`,
+which for many errors is just the short message (e.g. `invalid literal for
+int() with base 10: '**'`). The file name and line number are lost, making
+the root cause impossible to find from the log alone.
+
+**Fix:** Log the full traceback:
+
+```python
+import traceback
+tb = traceback.format_exc()
+log(f"ERROR in main loop: {e}\n{tb}")
+```
+
+This is now in the daemon. On a new project, add it from the start.

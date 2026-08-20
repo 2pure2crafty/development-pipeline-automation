@@ -8,7 +8,7 @@ OVERSEER_PY="/var/www/hdp/agents/overseer/overseer.py"
 LOG="/var/www/hdp/agents/overseer/overseer.log"
 
 # Check if daemon is already running
-if pgrep -f overseer.py > /dev/null; then
+if pgrep -f "python3.*overseer.py" > /dev/null; then
     echo "Overseer daemon is already running (PID: $(cat /var/www/hdp/agents/overseer/overseer.pid 2>/dev/null))"
     exit 0
 fi
@@ -17,9 +17,10 @@ fi
 touch "$DAEMON_ENABLED_FLAG"
 echo "daemon-enabled flag created."
 
-# Start the daemon as the current user (patch).
-# Requires: patch is in the hdp group, staging/docs is group-writable.
-# Run as: sudo usermod -a -G hdp patch && sudo chmod -R g+w /var/www/hdp/staging/docs/
-python3 "$OVERSEER_PY" >> "$LOG" 2>&1 &
-echo "Overseer daemon started (PID: $!)."
+# Start the daemon with the hdp group active so it can write to group-owned staging files.
+# If sg fails (e.g. first login before group takes effect), this will error -- log out/in first.
+sg hdp -c "python3 '$OVERSEER_PY' >> '$LOG' 2>&1 &"
+sleep 1
+DAEMON_PID=$(pgrep -f "python3.*overseer.py" | head -1)
+echo "Overseer daemon started (PID: ${DAEMON_PID})."
 echo "Log: tail -f $LOG"
