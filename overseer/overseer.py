@@ -8,7 +8,7 @@ based on the state machine defined in PIPELINE-LOGIC.md.
 Run:  python3 /var/www/hdp/agents/overseer/overseer.py
 Stop: Ctrl-C or kill the process (it writes a PID file)
 
-The overseer Claude session (hdp-overseer tmux) is Patch's interface.
+The overseer Claude session (HDS-overseer tmux) is Patch's interface.
 This script is the mechanical engine that runs underneath it.
 """
 
@@ -257,7 +257,7 @@ Update pipeline-state.md to IN PROGRESS as your first action.
 
 def start_agent(agent: str) -> bool:
     """Start a tmux session for the named agent and launch Claude."""
-    session = f"hdp-{agent}"
+    session = f"HDS-{agent}"
     agent_dir = str(AGENT_ROOT / agent)
 
     # Kill any existing session cleanly
@@ -282,7 +282,7 @@ def start_agent(agent: str) -> bool:
 
 def kill_agent(agent: str):
     """Kill the tmux session for the named agent."""
-    session = f"hdp-{agent}"
+    session = f"HDS-{agent}"
     result = subprocess.run(["tmux", "kill-session", "-t", session],
                             capture_output=True, text=True)
     if result.returncode == 0:
@@ -293,7 +293,7 @@ def kill_agent(agent: str):
 
 def agent_session_alive(agent: str) -> bool:
     """Return True if the agent's tmux session exists."""
-    session = f"hdp-{agent}"
+    session = f"HDS-{agent}"
     result = subprocess.run(
         ["tmux", "has-session", "-t", session],
         capture_output=True
@@ -459,7 +459,7 @@ def handle_state(state: dict, config: dict, items: list,
         escalate(
             f"Agent {stage} has been IN PROGRESS for {elapsed/3600:.1f} hours "
             f"with no state update.",
-            f"Feature: {feature}\nSession: hdp-{stage}\n"
+            f"Feature: {feature}\nSession: HDS-{stage}\n"
             f"Check the tmux session and investigate."
         )
         return time.time()
@@ -774,7 +774,7 @@ def write_heartbeat(state: dict, config: dict):
         )
     else:
         # Check if the pipeline agent session is alive
-        session = f"hdp-{stage}"
+        session = f"HDS-{stage}"
         alive = agent_session_alive(stage)
         session_status = "ALIVE" if alive else "DEAD (session not found)"
 
