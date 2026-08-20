@@ -16,6 +16,7 @@ AGENT_DIRS=(
   /var/www/hdp/agents/integration-testing
   /var/www/hdp/agents/reviewer
   /var/www/hdp/agents/ux-ui
+  /var/www/hdp/agents/deploy
 )
 
 echo "Bootstrapping Claude trust for all agent directories..."

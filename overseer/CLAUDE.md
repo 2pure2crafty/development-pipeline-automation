@@ -142,6 +142,51 @@ accordingly, then tell Patch to restart the daemon if it stopped.
 
 ---
 
+## Starting the deploy agent
+
+The deploy agent is NOT part of the automated pipeline. It only runs when
+Patch explicitly asks to deploy to production. You start it manually.
+
+When Patch gives the instruction to deploy:
+
+1. Confirm the preconditions are met:
+   - No feature branch is currently open in the pipeline
+   - The cycle branch has been reviewed and merged into staging main
+   - Patch has explicitly confirmed they want to deploy
+
+2. Write a startup-context.md to /var/www/hdp/agents/deploy/:
+
+   ```
+   # Startup Context -- Deploy Agent
+
+   Deploy instruction from: Patch
+   Date: [YYYY-MM-DD HH:MM]
+   Deployment note: /var/www/hdp/staging/docs/dev-inbox/deployment-note.md
+   Staging branch: main (confirm before deploying)
+   Target: production at /var/www/hdp/production/
+
+   Read your CLAUDE.md for the full deployment procedure.
+   Do not begin until you have read deployment-note.md in full.
+   ```
+
+3. Start the tmux session:
+   ```bash
+   tmux new-session -d -s HDS-deploy -c /var/www/hdp/agents/deploy/
+   tmux rename-window -t HDS-deploy:0 "HDS-deploy-$(date +%Y-%m-%d)"
+   tmux send-keys -t HDS-deploy "claude" Enter
+   ```
+
+4. Tell Patch: "Deploy agent is starting in the HDS-deploy session.
+   Attach with: tmux attach -t HDS-deploy"
+
+The deploy agent writes a report to:
+  /var/www/hdp/staging/docs/deploy-log/YYYY-MM-DD-deployment-report.md
+
+After deploy completes, kill the session:
+  tmux kill-session -t HDS-deploy
+
+---
+
 ## Stopping the daemon when a cycle is complete
 
 When you have confirmed that a cycle is complete (all features built and
