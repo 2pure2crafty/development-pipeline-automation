@@ -173,3 +173,10 @@ testing-staging run.
   IN PROGRESS with no change, the overseer could check the tmux pane and send a
   startup message if the agent appears idle. The 4-hour alarm would remain as a
   last resort.
+
+- **Integration-testing notable: interest-type commune dispatch differs between
+  app.js and index.html.** app.js loadCommune() sets HDS_COMMUNE for interest-type
+  communes (cycling, camping, etc.) when accessed via subdomain, but index.html
+  inline dispatch shows the national view for these types. Confirmed pre-existing
+  intentional design, not a regression from this feature. Worth documenting
+  explicitly in platform context so future agents don't flag it as a new finding.
