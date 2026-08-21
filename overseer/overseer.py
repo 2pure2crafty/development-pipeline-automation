@@ -342,12 +342,17 @@ def start_agent(agent: str) -> bool:
     subprocess.run(["tmux", "send-keys", "-t", session,
                     "claude --permission-mode auto", "Enter"])
 
-    # Send /remote-control after Claude finishes loading (60 s), then send an
-    # explicit startup message 5 s later so the agent doesn't sit idle waiting
-    # for a prompt that never comes. The empty Enter alone is not reliable.
+    # Startup sequence (runs in background, 60 s after launch):
+    # 1. Send /remote-control to activate remote-control mode.
+    # 2. Wait 5 s, then run ensure-auto-mode.sh: checks the pane for "auto mode"
+    #    and cycles via shift-tab (BTab) until it lands there (max 4 attempts).
+    #    Needed because /remote-control can leave the session in a non-auto mode.
+    # 3. Wait 2 s, then send the explicit startup message so the agent begins work.
+    ensure_script = str(SCRIPTS_DIR / "ensure-auto-mode.sh")
     subprocess.Popen(
         f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter"
-        f" && sleep 5 && tmux send-keys -t {session}"
+        f" && sleep 5 && bash {ensure_script} {session}"
+        f" && sleep 2 && tmux send-keys -t {session}"
         f" 'Read your startup-context.md and begin your work.' Enter",
         shell=True
     )
