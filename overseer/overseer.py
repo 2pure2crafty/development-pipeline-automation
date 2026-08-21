@@ -342,10 +342,13 @@ def start_agent(agent: str) -> bool:
     subprocess.run(["tmux", "send-keys", "-t", session,
                     "claude --permission-mode auto", "Enter"])
 
-    # Send /remote-control after Claude finishes loading (60 s).
-    # Two Enters: first submits /remote-control, second clears the buffer.
+    # Send /remote-control after Claude finishes loading (60 s), then send an
+    # explicit startup message 5 s later so the agent doesn't sit idle waiting
+    # for a prompt that never comes. The empty Enter alone is not reliable.
     subprocess.Popen(
-        f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter Enter",
+        f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter"
+        f" && sleep 5 && tmux send-keys -t {session}"
+        f" 'Read your startup-context.md and begin your work.' Enter",
         shell=True
     )
 

@@ -271,3 +271,36 @@ Also fix the KeyError: use `next_item['feature']`, not `next_item['name']`.
 **Generalising:** Any time you add a "nothing left to do" check to the daemon, include
 ACTIVE items in the definition of "things in progress". An empty QUEUED list is not
 the same as an empty pipeline.
+
+---
+
+## 13. Pipeline agents sit idle after /remote-control -- no startup message sent
+
+**Problem:** The daemon starts each pipeline agent with `claude --permission-mode auto`,
+then sends `/remote-control` 60 seconds later. A second blank Enter was intended to
+trigger Claude to read its CLAUDE.md and begin work. In practice this is unreliable:
+some agents start correctly, others sit idle at the `❯` prompt indefinitely and the
+stuck-agent alarm fires 4 hours later.
+
+The root cause: an empty Enter in remote-control mode is not a guaranteed trigger.
+The agent has no message to respond to and makes no assumptions about what it should
+do without one.
+
+**Fix:** After sending `/remote-control`, wait 5 seconds then send an explicit startup
+message: "Read your startup-context.md and begin your work." This is unambiguous and
+always triggers the agent to begin.
+
+```python
+subprocess.Popen(
+    f"sleep 60 && tmux send-keys -t {session} '/remote-control' Enter"
+    f" && sleep 5 && tmux send-keys -t {session}"
+    f" 'Read your startup-context.md and begin your work.' Enter",
+    shell=True
+)
+```
+
+This is now the default in `start_agent()`.
+
+**Generalising:** Any always-on or pipeline session that activates remote-control
+should immediately follow with an explicit message telling Claude what to do. Never
+rely on an empty message or an implicit "Claude will just know" assumption.
