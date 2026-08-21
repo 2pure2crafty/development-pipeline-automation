@@ -159,6 +159,44 @@ testing-staging run.
 
 ---
 
+### Issue 007 -- HDS-ideas cron revival missing /remote-control and startup message
+
+**Status:** FIXED (2026-08-21)
+
+**Symptom:** On a revival after crash or reboot, the HDS-ideas cron restarted Claude
+but never sent `/remote-control` or a startup message. The session would be alive but
+inaccessible and silent until manually intervened.
+
+**Root cause:** The cron used inline tmux commands (start session, send `claude`, done).
+The /remote-control + startup sequence that `start-planning.sh` implements correctly was
+never added to the ideas revival path.
+
+**Fix:** Created `scripts/revive-ideas.sh` following the same pattern as
+`start-planning.sh`. Updated crontab to call the script instead of inline commands.
+
+**See also:** PITFALLS.md #14.
+
+---
+
+### Issue 008 -- Manual tmux send-keys leaves Enter unregistered when session is transitional
+
+**Status:** FIXED (workaround documented, 2026-08-21)
+
+**Symptom:** When sending startup messages to HDS-features and HDS-overseer via
+`tmux send-keys -t SESSION "message" Enter`, the text appeared in the input buffer
+but Claude never responded. A second bare Enter was required to actually submit.
+
+**Root cause:** The sessions were in a transitional state (just connected remote-control)
+when the message was sent. The Enter keystroke did not register against the input field.
+Confirmed via `tmux capture-pane`: message text visible at `❯` with no response below.
+
+**Fix:** Send a bare `tmux send-keys -t SESSION "" Enter` to flush the buffer.
+For scripts, use a `sleep 1` between the text send-keys and the Enter send-keys.
+
+**See also:** PITFALLS.md #15.
+
+---
+
 ## Improvements backlog (not bugs, but quality-of-life)
 
 - **Daemon log deduplication:** The log file contains duplicate runs from multiple
@@ -173,6 +211,39 @@ testing-staging run.
   IN PROGRESS with no change, the overseer could check the tmux pane and send a
   startup message if the agent appears idle. The 4-hour alarm would remain as a
   last resort.
+
+### Issue 008 -- UX/UI agent abandoned its role and corrupted the staging repo branch state
+
+**Status:** OPEN (needs CLAUDE.md fix before next cycle)
+
+**Symptom:** The UX/UI agent, instead of doing a visual review on staging, attempted
+to run git branch operations and a merge into main. It switched the staging repo from
+feature/staging-subdomain-routing to main, leaving docs/archive/ and docs/cycles/ as
+untracked blocking files. All pipeline docs (pipeline-state.md, build-queue.md, etc.)
+disappeared from the working tree. The merge it attempted also failed due to uncommitted
+local changes. Required manual intervention: killed the agent, removed the blocking
+untracked dirs, restored the cycle branch, stashed pipeline-state.md, did the merge
+manually.
+
+**Root cause:** The UX/UI agent's CLAUDE.md either gives insufficient guidance on
+scope boundaries, or the agent hallucinated a responsibility to do the merge. The
+merge step is the daemon's job. The UX/UI agent's only job is to look at the site
+and confirm no visual regressions.
+
+**Fix:** Update UX/UI CLAUDE.md to explicitly state:
+- Do NOT run git operations of any kind
+- Do NOT checkout branches, merge, or push
+- Do NOT touch pipeline-state.md via Bash (use Edit tool only)
+- Your job is: open the staging URLs in a browser or via curl, confirm visual output
+
+Also add a general note to all agent CLAUDE.mds: git operations on the staging repo
+(checkout, merge, push) are reserved for the daemon and Patch. Agents read from the
+repo but do not change its branch state.
+
+**See also:** Issue 005 (silent state write failure) -- the UX/UI agent also failed
+to write pipeline-state.md, consistent with the systemic pattern.
+
+---
 
 - **Integration-testing notable: interest-type commune dispatch differs between
   app.js and index.html.** app.js loadCommune() sets HDS_COMMUNE for interest-type
