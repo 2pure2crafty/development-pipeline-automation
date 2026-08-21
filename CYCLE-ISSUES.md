@@ -109,6 +109,56 @@ agent is alive and idle vs. dead or genuinely stuck.
 
 ---
 
+### Issue 005 -- Silent pipeline-state.md write failure is systemic, not one-off
+
+**Status:** OPEN (same root cause as Issue 003)
+
+**Symptom:** testing-staging agent completed its run and wrote its kick-back report
+to acceptance-fixes.md, but did not update pipeline-state.md to KICKED BACK. Overseer
+corrected manually (pattern now established as recurring).
+
+**Root cause:** Same as Issue 003. Agents are consistently failing to update
+pipeline-state.md, likely because they use a Bash command the allow list blocks.
+This has now happened in three stages: acceptance, dev (twice), testing-staging.
+
+**Fix needed:** Issue 003 fix candidates still apply. Priority is increasing -- this
+is happening every stage.
+
+---
+
+### Issue 006 -- Count-based changeset criteria cause false failures and poor diagnostics
+
+**Status:** OPEN (process/design issue)
+
+**Symptom:** AC-021 said "exactly 2 files changed." The dev agent's kick-back fix
+for AC-016/017/018 required touching index.html, making it 3 files. AC-021 failed
+again on the second testing-staging run, even though the 3-file changeset is correct.
+The count criterion also gave the testing agent no way to identify WHICH file was
+unexpected -- it could only report a number.
+
+**Root cause:** The acceptance agent wrote count-based criteria ("exactly N files")
+instead of name-based criteria ("only these files: X, Y"). Count-based criteria:
+- Cannot distinguish a legitimate extra file from an unintended one
+- Become invalid when a kick-back fix legitimately expands scope
+- Give no diagnostic information ("3 files" vs. "unexpected file: index.html")
+
+**Fix:** The acceptance agent's CLAUDE.md should instruct it to name specific files
+in changeset criteria wherever possible, not just count them. Instead of:
+  "Exactly two files changed, no other files."
+Write:
+  "Only `public_html/api/_helpers.php` and `public_html/assets/app.js` are modified.
+   Any other changed file is unexpected and must be justified."
+
+This gives testing agents (and the overseer) a clear basis for distinguishing a
+legitimate scope expansion from an unintended change -- and flags when the expected
+files themselves are named correctly.
+
+**Action needed:** Update acceptance agent CLAUDE.md with this guidance. Apply
+retrospectively by having the acceptance agent revise AC-021 before the next
+testing-staging run.
+
+---
+
 ## Improvements backlog (not bugs, but quality-of-life)
 
 - **Daemon log deduplication:** The log file contains duplicate runs from multiple
