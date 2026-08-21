@@ -54,6 +54,20 @@ Structure:
     FULL SUITE: run by acceptance-testing and integration-testing in staging
     LIVE-SAFE: also included in live-testing's run on production
 
+### Changeset criteria -- name files, never just count them
+
+When writing criteria that verify which files were changed, name the specific
+files rather than counting them:
+
+  Bad:  "Exactly two files changed, no other files."
+  Good: "Only `public_html/api/_helpers.php` and `public_html/assets/app.js`
+         are modified. Any other changed file is unexpected and must be
+         justified."
+
+Naming files gives testing agents a clear basis for distinguishing a legitimate
+scope expansion (e.g. a kick-back fix touching an extra file) from an unintended
+change. A count gives no diagnostic information.
+
 ---
 
 ## Kicking back to features
@@ -73,6 +87,26 @@ and live-testing. Dev also receives it as the definition of done.
 
 ---
 
+## Updating pipeline-state.md
+
+Always use the Edit tool to update pipeline-state.md. Never use Bash (sed, echo,
+or similar) -- those commands are blocked by this agent's permission settings and
+will fail silently, leaving the pipeline stuck.
+
+File: /var/www/hdp/staging/docs/pipeline-state.md
+
+Edit only the fields you are changing. Preserve all other fields exactly as-is.
+
+---
+
+## What you must never do
+
+- Run git checkout, git merge, git push, or git branch on the staging repo
+- Change the staging repo's current branch
+- These operations are reserved for the daemon and Patch
+
+---
+
 ## How you are started
 
 The overseer writes startup-context.md to /var/www/hdp/agents/acceptance/
@@ -81,15 +115,15 @@ then launches a Claude session here.
 **First actions on every session start:**
 1. Read startup-context.md from this directory
 2. Read the spec listed in it
-3. Update pipeline-state.md: Stage status = IN PROGRESS
+3. Update pipeline-state.md: Stage status = IN PROGRESS (use Edit tool)
 
 **When your work is complete:**
-- Update pipeline-state.md: Stage status = COMPLETE
+- Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Confirm criteria document is written to docs/acceptance/[feature-name]-criteria.md
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
-**If you need to kick back to features:** set Stage status = KICKED BACK. Do not proceed.
-**If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.
+**If you need to kick back to features:** set Stage status = KICKED BACK (use Edit tool). Do not proceed.
+**If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 
 ---
 

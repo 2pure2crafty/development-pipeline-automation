@@ -54,7 +54,7 @@ work. Some agents start correctly (possibly timing-dependent), others do not.
 
 ### Issue 003 -- Agent pipeline-state.md write fails silently; agent reports success
 
-**Status:** OPEN
+**Status:** FIXED (2026-08-21 -- pre-cycle-002 review)
 
 **Symptom:** The acceptance agent's tmux pane showed "Pipeline state set to COMPLETE"
 at 04:55, but pipeline-state.md still showed `BLOCKED / WAITING FOR PATCH` from the
@@ -76,17 +76,16 @@ instruction text rather than a confirmed write result.
 - The daemon already monitors the output file existence (criteria doc); could infer
   COMPLETE from that rather than relying on agent self-reporting (resilient)
 
-**Recommended fix:** Both the targeted CLAUDE.md instruction AND the daemon inferring
-COMPLETE from output file existence as a fallback. Belt and braces.
-
-**Action needed:** Update acceptance CLAUDE.md and relevant agent CLAUDE.mds;
-investigate whether other agents have the same Bash restriction.
+**Fix applied:** Added explicit "use the Edit tool, not Bash" instructions to all
+pipeline agent CLAUDE.mds (acceptance, dev, features, integration-testing, product,
+reviewer, testing-staging, ux-ui). Each pipeline-state.md write call now annotated
+with "(use Edit tool)" in the "How you are started" section.
 
 ---
 
 ### Issue 004 -- Stuck-agent alarm fires but daemon marks pipeline BLOCKED, not monitored
 
-**Status:** OPEN
+**Status:** FIXED (2026-08-21 -- pre-cycle-002 review)
 
 **Symptom:** When the stuck-agent alarm fired at 00:00, the daemon wrote
 `Stage Status: BLOCKED / Waiting For: PATCH` to pipeline-state.md. This is correct
@@ -97,21 +96,18 @@ meant the daemon's own heartbeat showed no cycle active, confusing the recovery 
 **Root cause:** The escalation path always writes BLOCKED, regardless of whether the
 agent is alive and idle vs. dead or genuinely stuck.
 
-**Fix candidates:**
-- Add a separate `Stage Status: NUDGE NEEDED` state that the overseer can resolve
-  by sending a startup message (keeps the pipeline status accurate)
-- Have the overseer check tmux session state before writing BLOCKED: if session is alive
-  and /remote-control is active, send a startup nudge before escalating
-- Keep BLOCKED but have the daemon continue monitoring so it picks up COMPLETE when
-  the agent eventually finishes (rather than requiring manual state correction)
-
-**Action needed:** Design decision needed before implementation.
+**Fix applied:** Added a NUDGE_THRESHOLD (30 minutes) before the STUCK_THRESHOLD
+(4 hours). If an agent has been IN PROGRESS for more than 30 minutes with no state
+change, the daemon sends a startup nudge message to its tmux session. Each (stage,
+feature) pair is only nudged once per daemon session. The nudge is cleared when the
+state advances. Only if the agent remains stuck after 4 hours total does the daemon
+escalate to BLOCKED.
 
 ---
 
 ### Issue 005 -- Silent pipeline-state.md write failure is systemic, not one-off
 
-**Status:** OPEN (same root cause as Issue 003)
+**Status:** FIXED (2026-08-21 -- same fix as Issue 003)
 
 **Symptom:** testing-staging agent completed its run and wrote its kick-back report
 to acceptance-fixes.md, but did not update pipeline-state.md to KICKED BACK. Overseer
@@ -128,7 +124,7 @@ is happening every stage.
 
 ### Issue 006 -- Count-based changeset criteria cause false failures and poor diagnostics
 
-**Status:** OPEN (process/design issue)
+**Status:** FIXED (2026-08-21 -- pre-cycle-002 review)
 
 **Symptom:** AC-021 said "exactly 2 files changed." The dev agent's kick-back fix
 for AC-016/017/018 required touching index.html, making it 3 files. AC-021 failed
@@ -153,9 +149,8 @@ This gives testing agents (and the overseer) a clear basis for distinguishing a
 legitimate scope expansion from an unintended change -- and flags when the expected
 files themselves are named correctly.
 
-**Action needed:** Update acceptance agent CLAUDE.md with this guidance. Apply
-retrospectively by having the acceptance agent revise AC-021 before the next
-testing-staging run.
+**Fix applied:** Added "Changeset criteria -- name files, never just count them"
+section to acceptance/CLAUDE.md with a Bad/Good example.
 
 ---
 
@@ -214,7 +209,7 @@ For scripts, use a `sleep 1` between the text send-keys and the Enter send-keys.
 
 ### Issue 008 -- UX/UI agent abandoned its role and corrupted the staging repo branch state
 
-**Status:** OPEN (needs CLAUDE.md fix before next cycle)
+**Status:** FIXED (2026-08-21 -- pre-cycle-002 review)
 
 **Symptom:** The UX/UI agent, instead of doing a visual review on staging, attempted
 to run git branch operations and a merge into main. It switched the staging repo from
@@ -230,18 +225,19 @@ scope boundaries, or the agent hallucinated a responsibility to do the merge. Th
 merge step is the daemon's job. The UX/UI agent's only job is to look at the site
 and confirm no visual regressions.
 
-**Fix:** Update UX/UI CLAUDE.md to explicitly state:
-- Do NOT run git operations of any kind
-- Do NOT checkout branches, merge, or push
-- Do NOT touch pipeline-state.md via Bash (use Edit tool only)
-- Your job is: open the staging URLs in a browser or via curl, confirm visual output
-
-Also add a general note to all agent CLAUDE.mds: git operations on the staging repo
-(checkout, merge, push) are reserved for the daemon and Patch. Agents read from the
-repo but do not change its branch state.
+**Fix applied:**
+- Removed the "Merge procedure" section from ux-ui/CLAUDE.md entirely. The daemon
+  already handles the merge in `_merge_feature_to_cycle()` when it detects COMPLETE.
+- Updated ux-ui "What you do", "Pass condition", and "How you are started" sections
+  to remove all references to running git commands. When Patch gives go-ahead, the
+  agent updates pipeline-state.md to COMPLETE (via Edit tool) and stops.
+- Added "What you must never do" (git prohibition) to ALL pipeline agent CLAUDE.mds:
+  acceptance, dev, features, integration-testing, product, reviewer, testing-staging,
+  ux-ui. Dev's version permits feature branch operations but prohibits merges and
+  checkout of cycle/main branches.
 
 **See also:** Issue 005 (silent state write failure) -- the UX/UI agent also failed
-to write pipeline-state.md, consistent with the systemic pattern.
+to write pipeline-state.md, consistent with the systemic pattern. Both fixed.
 
 ---
 

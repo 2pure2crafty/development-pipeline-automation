@@ -57,11 +57,63 @@ Do not try to spec features yourself.
 Strategy and commercial docs live at:
   /var/www/hdp/staging/public_html/docs/              (public-facing HTML docs)
   /var/www/hdp/staging/docs/commercial-and-strategy/  (internal markdown docs)
+  /var/www/hdp/production/public_html/docs/           (live site, mirrors staging when deployed)
 
-Key files:
-  rate-card.html, investor-pitch.html, scaling-economics.html
-  USEFUL-LINKS.md, HDS-COMMERCIAL.md, SCHEDULE-AUG-SEP-2026.md
-  competitor-naturkartan.html, positioning-vs-naturkartan.html
+### Read at every startup (in this order)
+
+These give you current state. Read them before advising on anything commercial.
+
+1. /var/www/hdp/staging/docs/commercial-and-strategy/HDS-COMMERCIAL.md
+   Canonical source for all pricing, deal terms, and active agreements. If any
+   number elsewhere contradicts this file, this file wins.
+
+2. /var/www/hdp/staging/docs/commercial-and-strategy/SCHEDULE-AUG-SEP-2026.md
+   Current working schedule. Shows what week we are in, what is done, what is
+   pending. Critical for knowing what Patch should be doing right now.
+
+3. /var/www/hdp/staging/docs/commercial-and-strategy/STRATEGY-WORKING-SESSION.md
+   Live working document. Open questions, SWOT, funding landscape, outreach
+   drafts, document pipeline. Updated each session.
+
+### Read when relevant (know these exist)
+
+**Strategy and thesis:**
+- HDS-CORE-THESIS.md: What HDS actually is. The Tom Sawyer / consignment /
+  distribution inversion framing. Use this when explaining the business to
+  investors, journalists, or anyone who asks "what is HDS really building?"
+- HDS-Strategy-and-Financials.md: Strategy, two-entity structure, Piteå deal
+  terms, financial projections, network effects. Good handover document.
+- HDS-ACHIEVABILITY-ASSESSMENT-2026.md: Honest assessment of sales hurdles,
+  execution dangers, competitive threats, and sequential roadmap. Read before
+  any commune sales planning conversation.
+- HDS-MASTER-INDEX.md: Index of all HDS documents.
+
+**Sales and operations:**
+- pre-sales-playbook.md: How to run a digital health check on a commune before
+  pitching. Includes the bottom-up vs top-down framing and observations doc format.
+- PITEA-VISIT-PLAN.md: Mission brief for the Piteå visit. Four people, four
+  outcomes, full preparation checklist.
+- commune-rollout-playbook.md: How to replicate the Piteå model for commune #2+.
+- pitea-besok/ folder: Four leave-behind documents for the Piteå visit day.
+- pitea-projektplan-aug2026.md: Swedish-language project plan for the Piteå
+  commune contact.
+
+**Competitor and market:**
+- USEFUL-LINKS.md: Every external URL encountered in planning. Competitors,
+  funding bodies, licensing targets, local entities, tools. Add to this whenever
+  a new URL is mentioned.
+- SIMPLEVIEW-COMPETITIVE-ANALYSIS-2026.md: Full analysis of the main named
+  competitor. Useful before any pitch that involves pricing comparisons.
+- hds-verticals.md / hds-verticals-diagram.html: The vertical product strategy
+  (cycling, camping, events subdomains) and cross-commune aggregation.
+
+**Public-facing HTML docs (live at hittadittsverige.se/docs/):**
+- investor-pitch.html: The canonical investor pitch. 10M SEK pre-money valuation,
+  LTV:CAC analysis, data licensing thesis. Share this URL with investors.
+- rate-card.html: Published pricing for communes.
+- scaling-economics.html: Revenue and cost model at scale.
+- competitor-naturkartan.html / positioning-vs-naturkartan.html: Naturkartan
+  competitive analysis and positioning guide.
 
 ---
 

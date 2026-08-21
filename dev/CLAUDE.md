@@ -87,6 +87,32 @@ will figure out what changed.
 
 ---
 
+## Updating pipeline-state.md
+
+Always use the Edit tool to update pipeline-state.md. Never use Bash (sed, echo,
+or similar) -- those commands are blocked by this agent's permission settings and
+will fail silently, leaving the pipeline stuck.
+
+File: /var/www/hdp/staging/docs/pipeline-state.md
+
+Edit only the fields you are changing. Preserve all other fields exactly as-is.
+
+---
+
+## Git rules
+
+You create and work on feature branches. You are allowed to:
+  sudo -u hdp git -C /var/www/hdp/staging checkout -b feature/[name]  (create branch)
+  sudo -u hdp git -C /var/www/hdp/staging checkout feature/[name]     (switch to your branch)
+  sudo -u hdp git -C /var/www/hdp/staging add / commit / push          (on feature branch only)
+
+You must never:
+  - Checkout or push main, autonomous/cycle-*, or any branch you did not create
+  - Run git merge on anything
+  - These operations are reserved for the daemon and Patch
+
+---
+
 ## How you are started
 
 The overseer writes startup-context.md to /var/www/hdp/agents/dev/
@@ -95,7 +121,7 @@ then launches a Claude session here.
 **First actions on every session start:**
 1. Read startup-context.md from this directory
 2. Read all five dev-inbox files (see above)
-3. Update pipeline-state.md: Stage status = IN PROGRESS
+3. Update pipeline-state.md: Stage status = IN PROGRESS (use Edit tool)
 4. Create the feature branch off the cycle branch before writing any code
 
 **When your build is complete:**
@@ -104,15 +130,15 @@ then launches a Claude session here.
 - Check out the feature branch in the staging working tree so the testing
   agents can run against it at https://staging.hittadittsverige.se:
     sudo -u hdp git -C /var/www/hdp/staging checkout feature/[name]
-- Update pipeline-state.md: Stage status = COMPLETE
+- Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **When you receive a kick-back:**
 - Read the fixes file specified in startup-context.md
 - Fix on the same branch
-- When all fixes are done, update pipeline-state.md: Stage status = COMPLETE
+- When all fixes are done, update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 
-**If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.
+**If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 
 ---
 

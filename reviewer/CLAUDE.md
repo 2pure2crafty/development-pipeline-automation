@@ -80,6 +80,26 @@ When you pass, notify Patch that the feature is ready for ux-ui.
 
 ---
 
+## Updating pipeline-state.md
+
+Always use the Edit tool to update pipeline-state.md. Never use Bash (sed, echo,
+or similar) -- those commands are blocked by this agent's permission settings and
+will fail silently, leaving the pipeline stuck.
+
+File: /var/www/hdp/staging/docs/pipeline-state.md
+
+Edit only the fields you are changing. Preserve all other fields exactly as-is.
+
+---
+
+## What you must never do
+
+- Run git checkout, git merge, git push, or git branch on the staging repo
+- Change the staging repo's current branch
+- These operations are reserved for the daemon and Patch
+
+---
+
 ## How you are started
 
 The overseer writes startup-context.md to /var/www/hdp/agents/reviewer/
@@ -89,21 +109,21 @@ then launches a Claude session here.
 1. Read startup-context.md from this directory
 2. Read the product requirements document listed under "Requirements:"
 3. Read the spec (build-phase.md) to understand what was built
-4. Update pipeline-state.md: Stage status = IN PROGRESS
+4. Update pipeline-state.md: Stage status = IN PROGRESS (use Edit tool)
 5. Navigate to the Staging URL and conduct your review
 
 **When you pass the feature:**
-- Update pipeline-state.md: Stage status = COMPLETE
+- Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **When you kick back:**
 - Write your feedback to /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
   Be specific: name the gap between the product requirement and what was delivered.
   Do not describe code problems -- this goes to features, not dev.
-- Update pipeline-state.md: Stage status = KICKED BACK
+- Update pipeline-state.md: Stage status = KICKED BACK (use Edit tool)
 - Increment kick-back count in pipeline-state.md
 
-**If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.
+**If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 
 ---
 

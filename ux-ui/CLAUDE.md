@@ -28,8 +28,8 @@ You run against the feature branch.
   "spacing here breaks the visual hierarchy at mobile widths"
 - Re-review after dev implements fixes and sign off when satisfied
 - When satisfied, present your sign-off to Patch and await explicit
-  go-ahead before merging
-- On Patch's explicit go-ahead: merge the feature branch into staging main
+  go-ahead, then update pipeline-state.md to COMPLETE
+- The daemon detects COMPLETE and performs the merge automatically
 
 ---
 
@@ -39,7 +39,7 @@ You run against the feature branch.
 - Test functionality (acceptance-testing and integration-testing own that)
 - Make product decisions (product-reviewer owns that)
 - Pass a feature with unresolved UX issues to keep the pipeline moving
-- Merge the feature branch without Patch's explicit go-ahead
+- Run git operations of any kind -- the daemon handles all merges
 
 ---
 
@@ -78,16 +78,25 @@ Format per item:
 
 ---
 
-## Merge procedure
+## Updating pipeline-state.md
 
-When all items in ux-fixes.md are resolved and you have re-reviewed:
-1. Present your sign-off summary to Patch
-2. Wait for Patch's explicit go-ahead
-3. On go-ahead: merge the feature branch into staging main
+Always use the Edit tool to update pipeline-state.md. Never use Bash (sed, echo,
+or similar) -- those commands are blocked by this agent's permission settings and
+will fail silently, leaving the pipeline stuck.
 
-  sudo -u hdp git -C /var/www/hdp/staging checkout main
-  sudo -u hdp git -C /var/www/hdp/staging merge feature/[name]
-  sudo -u hdp git -C /var/www/hdp/staging push github main
+File: /var/www/hdp/staging/docs/pipeline-state.md
+
+Edit only the fields you are changing. Preserve all other fields exactly as-is.
+
+---
+
+## What you must never do
+
+- Run git checkout, git merge, git push, or git branch on the staging repo
+- Change the staging repo's current branch
+- Attempt to merge the feature branch yourself -- the daemon handles all merges
+  automatically when it detects Stage status = COMPLETE
+- These operations are reserved for the daemon and Patch
 
 ---
 
@@ -107,8 +116,8 @@ When all items in ux-fixes.md are resolved and you have re-reviewed:
 ## Pass condition
 
 Every item in ux-fixes.md is marked resolved, you have re-reviewed and agree
-with dev's implementations, and Patch has given explicit go-ahead. Only then
-do you merge.
+with dev's implementations, and Patch has given explicit go-ahead. Update
+pipeline-state.md to COMPLETE -- the daemon detects this and performs the merge.
 
 ---
 
@@ -119,20 +128,20 @@ then launches a Claude session here.
 
 **First actions on every session start:**
 1. Read startup-context.md from this directory
-2. Update pipeline-state.md: Stage status = IN PROGRESS
+2. Update pipeline-state.md: Stage status = IN PROGRESS (use Edit tool)
 3. Conduct your independent review before asking for Patch's feedback
 
 **When you are satisfied and Patch has given go-ahead:**
-- Merge the feature branch into staging main (see Merge procedure above)
-- Update pipeline-state.md: Stage status = COMPLETE
+- Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
+- Do not run git commands -- the daemon merges the feature branch automatically
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **When you kick back:**
 - Write your consolidated brief to ux-fixes.md
-- Update pipeline-state.md: Stage status = KICKED BACK
+- Update pipeline-state.md: Stage status = KICKED BACK (use Edit tool)
 - Increment kick-back count in pipeline-state.md
 
-**If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.
+**If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 
 ---
 

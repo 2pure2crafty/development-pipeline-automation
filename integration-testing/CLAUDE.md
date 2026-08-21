@@ -76,6 +76,26 @@ product-reviewer.
 
 ---
 
+## Updating pipeline-state.md
+
+Always use the Edit tool to update pipeline-state.md. Never use Bash (sed, echo,
+or similar) -- those commands are blocked by this agent's permission settings and
+will fail silently, leaving the pipeline stuck.
+
+File: /var/www/hdp/staging/docs/pipeline-state.md
+
+Edit only the fields you are changing. Preserve all other fields exactly as-is.
+
+---
+
+## What you must never do
+
+- Run git checkout, git merge, git push, or git branch on the staging repo
+- Change the staging repo's current branch
+- These operations are reserved for the daemon and Patch
+
+---
+
 ## How you are started
 
 The overseer writes startup-context.md to /var/www/hdp/agents/integration-testing/
@@ -83,19 +103,19 @@ then launches a Claude session here.
 
 **First actions on every session start:**
 1. Read startup-context.md from this directory
-2. Update pipeline-state.md: Stage status = IN PROGRESS
+2. Update pipeline-state.md: Stage status = IN PROGRESS (use Edit tool)
 3. Read staging/CLAUDE.md thoroughly before designing any tests
 
 **When all tests pass:**
-- Update pipeline-state.md: Stage status = COMPLETE
+- Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Do not close your session -- the overseer kills it on detecting COMPLETE
 
 **When tests fail:**
 - Write failures to integration-fixes.md
-- Update pipeline-state.md: Stage status = KICKED BACK
+- Update pipeline-state.md: Stage status = KICKED BACK (use Edit tool)
 - Increment kick-back count in pipeline-state.md
 
-**If startup-context.md is missing:** set Stage status = BLOCKED. Do not proceed.
+**If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 
 ---
 

@@ -39,7 +39,10 @@ RESTART_FILE     = AGENT_ROOT / "overseer" / "overseer-restart.md"
 DAEMON_ENABLED   = AGENT_ROOT / "overseer" / "daemon-enabled"
 SCRIPTS_DIR      = AGENT_ROOT / "overseer" / "scripts"
 
-# How long (seconds) to wait before flagging a stuck agent
+# How long (seconds) before sending a nudge to an idle agent
+NUDGE_THRESHOLD = 30 * 60  # 30 minutes
+
+# How long (seconds) to wait before flagging a stuck agent (after nudge)
 STUCK_THRESHOLD = 4 * 60 * 60  # 4 hours
 
 # Poll interval (seconds)
@@ -47,6 +50,11 @@ POLL_INTERVAL = 60
 
 # How many polls between overseer session health checks (10 minutes at 60s/poll)
 OVERSEER_SESSION_CHECK_INTERVAL = 10
+
+# Track which (stage, feature) pairs have already been nudged this session.
+# Keyed by "stage:feature", value is the timestamp the nudge was sent.
+# Cleared when the state advances to a new stage.
+_nudge_sent: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -454,6 +462,34 @@ def escalate(reason: str, detail: str = ""):
 
 
 # ---------------------------------------------------------------------------
+# Nudge helper
+# ---------------------------------------------------------------------------
+
+def _nudge_agent(stage: str, feature: str):
+    """Send a startup nudge to an agent that appears idle."""
+    key = f"{stage}:{feature}"
+    if key in _nudge_sent:
+        return  # already nudged this session; wait for stuck alarm
+    session = f"HDS-{stage}"
+    msg = "Read your startup-context.md and begin your work."
+    result = subprocess.run(
+        ["tmux", "send-keys", "-t", session, msg, "Enter"],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        _nudge_sent[key] = time.time()
+        log(f"NUDGE: sent startup message to {session} for feature '{feature}' "
+            f"(IN PROGRESS for >{NUDGE_THRESHOLD//60} min with no state change)")
+    else:
+        log(f"NUDGE: failed to reach {session} -- session may not exist")
+
+
+def _clear_nudge(stage: str, feature: str):
+    """Clear nudge state when the pipeline advances past this stage."""
+    _nudge_sent.pop(f"{stage}:{feature}", None)
+
+
+# ---------------------------------------------------------------------------
 # State machine
 # ---------------------------------------------------------------------------
 
@@ -544,16 +580,19 @@ def handle_state(state: dict, config: dict, items: list,
                     _cycle_complete(cycle, config)
         return time.time()
 
-    # --- Check for stuck agent ---
+    # --- Check for idle/stuck agent ---
     elapsed = time.time() - last_state_change
-    if status == "IN PROGRESS" and elapsed > STUCK_THRESHOLD:
-        escalate(
-            f"Agent {stage} has been IN PROGRESS for {elapsed/3600:.1f} hours "
-            f"with no state update.",
-            f"Feature: {feature}\nSession: HDS-{stage}\n"
-            f"Check the tmux session and investigate."
-        )
-        return time.time()
+    if status == "IN PROGRESS":
+        if elapsed > STUCK_THRESHOLD:
+            escalate(
+                f"Agent {stage} has been IN PROGRESS for {elapsed/3600:.1f} hours "
+                f"with no state update.",
+                f"Feature: {feature}\nSession: HDS-{stage}\n"
+                f"Check the tmux session and investigate."
+            )
+            return time.time()
+        elif elapsed > NUDGE_THRESHOLD:
+            _nudge_agent(stage, feature)
 
     # --- COMPLETE: advance to next stage ---
     if status == "COMPLETE":
@@ -562,6 +601,7 @@ def handle_state(state: dict, config: dict, items: list,
         if stage == "ux-ui":
             # Feature fully passed pipeline
             if level >= 4:
+                _clear_nudge(stage, feature)
                 log(f"Feature '{feature}' passed ux-ui. Merging into cycle branch.")
                 _merge_feature_to_cycle(feature, branch, cycle)
                 _housekeeping(feature, cycle, items)
@@ -590,6 +630,7 @@ def handle_state(state: dict, config: dict, items: list,
 
         # Advance to next stage
         if level >= 3 or (level == 2):
+            _clear_nudge(stage, feature)
             kill_agent(stage)
             log(f"Stage {stage} COMPLETE. Advancing to {nxt}.")
             write_startup_context(nxt, feature, cycle, branch)
@@ -641,6 +682,7 @@ def handle_state(state: dict, config: dict, items: list,
         # First or second kick-back: send to appropriate target agent
         target = KICKBACK_TARGET.get(stage)
         if target:
+            _clear_nudge(stage, feature)
             kickback_file = _kickback_file_for(stage)
             kill_agent(stage)
             log(f"Kick-back from {stage}. Sending to {target}. Count: {kickbacks}")

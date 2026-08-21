@@ -42,6 +42,9 @@ Before any deployment:
   3. Take database snapshot:
        mysqldump -u [user] -p hdp_production > \
          /var/backups/hdp/db-pre-deploy-$(date +%Y-%m-%d-%H%M%S).sql
+     Note: if mysqldump is not available to this process, ask Patch to run the
+     snapshot command directly in the terminal. Never echo database credentials
+     in a tmux pane or include them in a shell command visible in logs.
   4. Record current production git tag or commit hash
   5. Proceed with deployment
 
