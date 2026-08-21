@@ -304,3 +304,112 @@ This is now the default in `start_agent()`.
 **Generalising:** Any always-on or pipeline session that activates remote-control
 should immediately follow with an explicit message telling Claude what to do. Never
 rely on an empty message or an implicit "Claude will just know" assumption.
+
+---
+
+## 14. Always-on agent cron revival must use a revive script, not inline commands
+
+**Problem:** The HDS-ideas cron revival used inline tmux commands:
+```
+tmux new-session ... && tmux send-keys -t HDS-ideas "claude" Enter
+```
+This only starts Claude — it does not send `/remote-control` or a startup message.
+After a crash revival, the session runs but is inaccessible (no remote control) and
+silent (no task). The stuck-agent alarm would eventually fire, but nobody would know
+the session had crashed in the meantime.
+
+**Fix:** Create a dedicated revive script (e.g. `scripts/revive-ideas.sh`) that runs
+the full startup sequence: start Claude → sleep 60 → send `/remote-control` → sleep 5
+→ send startup message. The cron calls the script, not inline commands:
+
+```
+*/5 * * * * tmux has-session -t HDS-ideas 2>/dev/null || bash /path/to/revive-ideas.sh >> revive.log 2>&1 &
+```
+
+See `scripts/revive-ideas.sh` for the reference implementation.
+
+**Generalising:** Any always-on session managed by cron should have a revive script,
+not an inline one-liner. The one-liner is always missing the /remote-control and
+startup message steps.
+
+---
+
+## 15. tmux send-keys: text and Enter in one call can leave Enter unregistered
+
+**Problem:** When sending a message to an agent session using:
+```bash
+tmux send-keys -t SESSION "message text" Enter
+```
+the Enter sometimes does not register if the session is in a transitional state
+(e.g. immediately after `/remote-control` connects, or while Claude is still
+rendering). The text lands in the input buffer but is not submitted — it sits at
+the `❯` prompt visibly but Claude never sees it.
+
+This affects both manual interventions (sending messages from another agent or
+the overseer) and automated scripts that send a message too soon after a state
+change.
+
+**Fix:** If a message is sitting in the buffer unsubmitted, send a bare Enter to
+flush it:
+```bash
+tmux send-keys -t SESSION "" Enter
+```
+
+For automation, always include an explicit `sleep 5` between `/remote-control` and
+the startup message (already the pattern in `start_agent()` and `start-planning.sh`).
+If reliability is critical, send text and Enter as two separate `send-keys` calls
+with a short sleep between:
+```bash
+tmux send-keys -t SESSION "message text"
+sleep 1
+tmux send-keys -t SESSION "" Enter
+```
+
+**Diagnosis:** Capture the pane with `tmux capture-pane -t SESSION -p -S -20`. If
+the message text appears after `❯` with no Claude response below it, the Enter did
+not register. Send a bare Enter to submit.
+
+---
+
+## 16. Pipeline agents must not touch the staging git repo's branch state
+
+**Problem:** The UX/UI agent abandoned its visual review role and attempted git
+operations on the staging repo: it checked out `main`, attempted a merge, and left
+`docs/archive/` and `docs/cycles/` as untracked blocking files. All pipeline docs
+(pipeline-state.md, build-queue.md, etc.) disappeared from the working tree. Manual
+recovery was required: kill the agent, remove blocking untracked dirs, restore the
+cycle branch, stash modified files, do the merge manually.
+
+**Why it happened:** The UX/UI CLAUDE.md did not explicitly forbid git branch
+operations. With no prohibition, the agent reasoned that "closing out the feature"
+meant doing the merge itself.
+
+**Fix -- three layers:**
+
+1. **Each agent CLAUDE.md must explicitly prohibit git branch operations:**
+   Add to every pipeline agent's CLAUDE.md:
+   ```
+   ## What you must never do
+   - Run git checkout, git merge, git push, or git branch commands on the staging repo
+   - Change the staging repo's current branch
+   - These operations are reserved for the daemon and Patch
+   ```
+
+2. **Add a git pre-checkout hook on the staging repo** to block non-daemon, non-Patch
+   branch switches during a cycle. If `daemon-enabled` exists and the user is not hdp,
+   refuse the checkout:
+   ```bash
+   #!/bin/bash
+   # .git/hooks/pre-checkout (or use a pre-command wrapper)
+   # Soft guard — logs and warns rather than hard-blocks in early deployments
+   if [ -f /var/www/hdp/agents/overseer/daemon-enabled ]; then
+     echo "WARNING: daemon-enabled flag is set. Branch switch during active cycle."
+   fi
+   ```
+
+3. **Overseer monitoring:** If the staging repo's current branch changes to anything
+   other than the expected cycle branch or the current feature branch, the overseer
+   should escalate immediately rather than waiting for the stuck-agent alarm.
+
+**Generalising:** On any new DPA project, add the git prohibition to agent CLAUDE.mds
+before the first cycle. It is much easier to prevent this than to recover from it.
