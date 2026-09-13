@@ -1,5 +1,12 @@
 # HDS Development Pipeline Automation
 
+> **Note on scope:** this pipeline was built while running an actual product,
+> Hitta Ditt Sverige (HDS), through it end to end. It is not a generic framework
+> yet: some effort has gone into generalizing it, but it is still meaningfully
+> project-specific. For example, project-specific instructions currently live
+> inside each agent's own `CLAUDE.md` in this repo; in a more reusable version,
+> they would live outside the repo and be pointed to per project instead.
+
 A multi-agent autonomous development pipeline for Hitta Ditt Sverige. Claude agents
 handle every stage from idea to merged feature, with a Python daemon coordinating
 handoffs and Patch as the final authority.
@@ -119,6 +126,47 @@ handoffs and Patch as the final authority.
 it is quarantined. Its branch is deleted, dependent features are marked SKIPPED,
 and Patch is notified. The pipeline continues with remaining eligible features.
 
+**Merge is where automation stops.** At every autonomy level, "merge feature →
+cycle branch" only puts code on the staging branch. Going live is a separate,
+Patch-triggered sequence, not another pipeline stage:
+
+```
+                                    cycle branch on staging
+                                              │
+                                   Patch explicitly instructs deploy
+                                              │
+                                    ┌─────────▼──────────┐
+                                    │    Deploy Agent     │
+                                    │  1. DB snapshot     │
+                                    │  2. pull staging →  │
+                                    │     production      │
+                                    │  3. run migrations  │
+                                    │  4. verify site up  │
+                                    └─────────┬──────────┘
+                                              │
+                                    ┌─────────▼──────────┐
+                                    │ Live Testing Agent  │
+                                    │  LIVE-SAFE criteria │
+                                    │  + deploy-note      │
+                                    │  checkpoints, run   │
+                                    │  against production │
+                                    └─────────┬──────────┘
+                                     PASS     │     FAIL
+                                              │       │
+                                   notify Patch:      ├── DEPLOYMENT PROBLEM
+                                   live + verified     │   → deploy fixes, re-runs
+                                                        │
+                                                        └── CODE PROBLEM
+                                                            → deploy reverts to
+                                                              snapshot, Patch
+                                                              routes back to dev
+```
+
+An interactive, in-browser walkthrough of the whole thing, including this
+deploy/live-testing split, is at [`docs/pipeline-exhibit.html`](docs/pipeline-exhibit.html).
+Download it and open it directly in a browser; GitHub's file preview does not
+execute the inline script.
+
 ---
 
 ## Agent roles
@@ -136,6 +184,8 @@ and Patch is notified. The pipeline continues with remaining eligible features.
 | Reviewer | HDS-reviewer | `agents/reviewer/` | Product-fit review (not a code review) |
 | UX/UI | HDS-ux-ui | `agents/ux-ui/` | Visual and interaction review, last gate before merge |
 | Overseer | HDS-overseer | `agents/overseer/` | Patch's interface; receives instructions, reports status |
+| Deploy | HDS-deploy | `agents/deploy/` | Ships staging main to production; only runs on Patch's explicit instruction, never automatically |
+| Testing (live) | HDS-testing-live | `agents/testing-live/` | Runs LIVE-SAFE smoke tests against production after deploy; classifies failures as deployment vs. code problems |
 
 The **overseer Claude session** (HDS-overseer) is Patch's conversational interface.
 The **overseer daemon** (`overseer.py`) is the mechanical engine running underneath it.
@@ -272,7 +322,11 @@ bash /var/www/hdp/agents/ideas/scripts/bootstrap-trust.sh
 ├── testing-staging/    Acceptance testing workspace
 ├── integration-testing/ Integration testing workspace
 ├── reviewer/           Product reviewer workspace
-└── ux-ui/              UX/UI agent workspace
+├── ux-ui/              UX/UI agent workspace
+├── deploy/             Deploy agent workspace (on demand, Patch-triggered only)
+└── testing-live/       Live testing agent workspace (on demand, runs after deploy)
 
 /var/www/hdp/staging/docs/   Shared workspace (agents read/write here)
+├── deploy-log/         Deployment reports (deploy + live-testing append here)
+└── dev-inbox/deployment-note.md   Per-deploy migration/env steps + live-testing checkpoints
 ```

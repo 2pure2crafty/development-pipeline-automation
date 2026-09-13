@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPA pipeline exhibit</title>
+<style>
+body{margin:0;padding:24px;background:#050a10;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:760px;margin:0 auto}
+.wrap h1{color:#E8B84B;font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px}
+.wrap p.lead{color:#7a8d9c;font-size:12px;line-height:1.6;margin:0 0 4px}
+.wrap p.lead a{color:#00C8E0}
+.xb{margin:22px 0 6px;border:2px solid #2a4256;background:#0a1420;padding:14px}
+.xb-h{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:#E8B84B;margin-bottom:4px}
+.xb-s{font-size:11px;color:#7a8d9c;margin-bottom:14px;line-height:1.6}
+.qrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.qitem{background:#0d1a26;border:1px solid #22303c;border-radius:3px;padding:6px 9px;
+font-size:9.5px;color:#5d7383;display:flex;flex-direction:column;gap:2px;min-width:64px}
+.qitem .qname{color:#8FA3B1;letter-spacing:.04em}
+.qitem .qdep{font-size:8px;color:#4d6273}
+.qitem .qst{font-size:8px;letter-spacing:.1em;text-transform:uppercase;padding:2px 5px;
+border-radius:2px;margin-top:2px;text-align:center}
+.qitem .qst.wait{background:#1b2833;color:#5d7383}
+.qitem .qst.run{background:#12385c;color:#bfe9f5}
+.qitem .qst.pass{background:#12261b;color:#9fe0b6}
+.qitem .qst.q{background:#3a1416;color:#eda9a3}
+.qitem .qst.skip{background:#241d1a;color:#8a7a5a}
+.qitem .qst.deployed{background:#3a2f12;color:#E8B84B}
+.qitem.on{border-color:#00C8E0}
+.pipe{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px}
+.pst{flex:1;min-width:64px;background:#0d1a26;border:1px solid #22303c;padding:7px 4px;font-size:8.5px;
+letter-spacing:.06em;text-transform:uppercase;color:#4d6273;text-align:center;transition:.18s;position:relative}
+.pst.act{background:#12385c;border-color:#00C8E0;color:#bfe9f5}
+.pst.done{border-color:#2f5d43;color:#5d8a72}
+.pst.fail{background:#3a1416;border-color:#C33B32;color:#eda9a3}
+.pst.gate{border-style:dashed;opacity:.55}
+.gatebar{display:flex;align-items:center;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:#4d6273;padding:0 6px;white-space:nowrap}
+.xrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+.xrow label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7a8d9c}
+.xbtn{background:#12385c;border:1px solid #00C8E0;color:#bfe9f5;font-size:10px;padding:7px 14px;letter-spacing:.14em;text-transform:uppercase}
+.xbtn:hover{background:#00C8E0;color:#06121c}
+.xbtn.alt{background:#1d2733;border-color:#3d4954;color:#8FA3B1}
+.xbtn.deploy{background:#1d2733;border-color:#E8B84B;color:#E8B84B}
+.xbtn.deploy:hover{background:#E8B84B;color:#0a1420}
+.xbtn:disabled{opacity:.35;pointer-events:none}
+.lvl{font-size:10px;color:#E8B84B;min-width:186px}
+input[type=range]{accent-color:#E8B84B;width:150px}
+.log{background:#06101a;border:1px solid #1b2833;padding:9px 11px;font-size:10.5px;line-height:1.75;
+height:132px;overflow-y:auto;color:#7a8d9c}
+.log div{margin-bottom:1px}
+.log .hi{color:#7EC8A0}
+.log .wn{color:#E8B84B}
+.log .er{color:#e08a82}
+.log .ok{color:#9fe0b6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DPA — run the pipeline</h1>
+  <p class="lead">Interactive companion to the flowchart in the <a href="../README.md">README</a>.
+  Set the autonomy level and turn it on to watch the queue manage itself — kick-backs,
+  quarantine, dependency skipping, and the fact that deploying to production is always
+  a separate, user-triggered action, never something the pipeline does on its own.</p>
+
+  <div id="dpa-exhibit"></div>
+</div>
+
+<script>
+const STAGES=['features','acceptance (writing)','dev','testing','integration','reviewer','ux/ui','merge','deploy','testing-live'];
+const AUTONOMOUS_COUNT=8; /* features..merge only. deploy/testing-live are never automatic, at any autonomy level */
+const KICK_TARGET = s => s===5 ? 0 : 2; /* reviewer kicks back to features; everything else kicks back to dev */
+
+function exhibitDPA(host){
+  const box=document.createElement('div'); box.className='xb';
+  box.innerHTML =
+   '<div class="xb-h">Exhibit · Run the pipeline</div>'+
+   '<div class="xb-s">Set the autonomy level, then turn it on and watch the whole queue '+
+   'manage itself, including the moment a dependency gets skipped. At Level 1 almost '+
+   'everything waits for approval; at Level 4 and 5 it only escalates when something '+
+   'fails twice. Merged features queue up for deployment, which is a separate, batched '+
+   'action the user always triggers, never the pipeline.</div>'+
+   '<div class="qrow" id="dqueue"></div>'+
+   '<div class="pipe" id="dpipe">'+
+     STAGES.slice(0,AUTONOMOUS_COUNT).map(x=>'<div class="pst">'+x+'</div>').join('')+
+     '<div class="gatebar">⏻ user triggers</div>'+
+     STAGES.slice(AUTONOMOUS_COUNT).map(x=>'<div class="pst gate">'+x+'</div>').join('')+
+   '</div>'+
+   '<div class="xrow">'+
+     '<label>Autonomy</label><input type="range" min="1" max="5" value="3" id="dlvl">'+
+     '<span class="lvl" id="dlvltxt"></span>'+
+   '</div>'+
+   '<div class="xrow">'+
+     '<button class="xbtn" id="drun">Turn it on</button>'+
+     '<button class="xbtn alt" id="dpause" disabled>Pause</button>'+
+     '<button class="xbtn alt" id="dfail">Send one that fails twice</button>'+
+     '<button class="xbtn alt" id="dreset">Reset</button>'+
+   '</div>'+
+   '<div class="xrow">'+
+     '<button class="xbtn alt" id="dapprove" disabled>Approve</button>'+
+   '</div>'+
+   '<div class="xrow">'+
+     '<label>Production</label>'+
+     '<button class="xbtn deploy" id="ddeploy" disabled>Deploy to production →</button>'+
+   '</div>'+
+   '<div class="log" id="dlog"></div>';
+  host.appendChild(box);
+
+  const pipe=[...box.querySelectorAll('.pst')], logEl=box.querySelector('#dlog');
+  const slider=box.querySelector('#dlvl'), lvlTxt=box.querySelector('#dlvltxt');
+  const deployBtn=box.querySelector('#ddeploy');
+  const pauseBtn=box.querySelector('#dpause');
+  const approveBtn=box.querySelector('#dapprove');
+  const LVL=['','Manual, nothing moves without the user',
+                'Auto-start, then wait for the user',
+                'Auto-advance, pause before merge',
+                'Auto-merge; escalate on double kick-back',
+                'Level 4 + pulls its own next job'];
+  let timer=null, waiting=false, running=false, paused=false;
+  let resumeFn=null;      /* what Approve should do when clicked */
+  let pendingResume=null; /* the deferred step Pause is holding onto */
+
+  const log=(t,c)=>{ const d=document.createElement('div'); if(c)d.className=c;
+    d.textContent=t; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; };
+  const clearAll=()=>{ pipe.forEach((p,i)=>{ p.className = i<AUTONOMOUS_COUNT ? 'pst' : 'pst gate'; }); };
+  const reset=()=>{
+    if(timer)clearTimeout(timer); timer=null;
+    waiting=false; running=false; paused=false; resumeFn=null; pendingResume=null;
+    clearAll(); logEl.innerHTML=''; log('pipeline-state.md · idle');
+    deployBtn.disabled=true;
+    pauseBtn.disabled=true; pauseBtn.textContent='Pause';
+    approveBtn.disabled=true;
+  };
+
+  slider.oninput=()=>lvlTxt.textContent='Level '+slider.value+': '+LVL[slider.value];
+  slider.oninput();
+
+  /* ── the queue: eight features. A spread of failure types, and three
+     dependents, two of which never get past the door. ── */
+  const QUEUE=[
+   {id:'feat-140', name:'feat-140', dep:null, fails:[]},
+   {id:'feat-141', name:'feat-141', dep:null, fails:[{stage:5}]},                          // reviewer, recovers
+   {id:'feat-142', name:'feat-142', dep:null, fails:[{stage:3},{stage:4},{stage:4,fatal:true}]}, // testing, then integration twice
+   {id:'feat-143', name:'feat-143', dep:'feat-142', skip:true},
+   {id:'feat-144', name:'feat-144', dep:null, fails:[{stage:6}]},                          // ux/ui, recovers
+   {id:'feat-145', name:'feat-145', dep:null, fails:[{stage:3},{stage:3,fatal:true}]},      // testing twice
+   {id:'feat-146', name:'feat-146', dep:null, fails:[]},                                   // unrelated, passes clean
+   {id:'feat-147', name:'feat-147', dep:'feat-145', skip:true}
+  ];
+  const qEl=box.querySelector('#dqueue');
+  const resetQueue=()=>QUEUE.forEach(f=>{ f.status='wait'; f.label='queued for dev'; });
+  function renderQueue(activeId){
+    qEl.innerHTML = QUEUE.map(f=>{
+      const on = f.id===activeId ? ' on':'';
+      return '<div class="qitem'+on+'">'+
+        '<span class="qname">'+f.name+'</span>'+
+        (f.dep? '<span class="qdep">needs '+f.dep+'</span>' : '<span class="qdep">&nbsp;</span>')+
+        '<span class="qst '+(f.status||'wait')+'">'+(f.label||'queued for dev')+'</span>'+
+      '</div>';
+    }).join('');
+  }
+  resetQueue();
+  renderQueue();
+
+  /* ── single-feature pipeline (used by "Send one that fails twice") ── */
+  function step(i, plan, done){
+    if(i>=plan.length){ done&&done(); return; }
+    const a=plan[i];
+    if(a.k==='hold'){
+      waiting=true; log('⏸ '+a.t,'wn'); approveBtn.disabled=false;
+      resumeFn=()=>{ approveBtn.disabled=true; waiting=false; step(i+1,plan,done); };
+      return;
+    }
+    if(a.k==='go'){
+      clearAll();
+      for(let j=0;j<a.s;j++) pipe[j].className='pst done';
+      pipe[a.s].className='pst act';
+      log('→ '+STAGES[a.s]+(a.m?'  '+a.m:''));
+    }
+    if(a.k==='fail'){ pipe[a.s].className='pst fail'; log('✕ '+a.t,'er'); }
+    if(a.k==='kick'){ log('↩ kick-back → '+STAGES[a.s]+'  ['+a.t+']','wn');
+                      clearAll(); for(let j=0;j<a.s;j++) pipe[j].className='pst done';
+                      pipe[a.s].className='pst act'; }
+    if(a.k==='ok'){ pipe.slice(0,AUTONOMOUS_COUNT).forEach(x=>x.className='pst done'); log('✓ '+a.t,'ok'); }
+    if(a.k==='okdeploy'){ pipe.forEach(x=>x.className='pst done'); log('✓ '+a.t,'ok'); }
+    if(a.k==='q'){ log(a.t,'er'); }
+    if(a.k==='note'){ log(a.t,a.c||''); }
+    const dur = a.dur!==undefined ? a.dur : (a.k==='note'?520:760);
+    const advance=()=>{ if(paused){ pendingResume=advance; return; } step(i+1,plan,done); };
+    timer=setTimeout(advance, dur);
+  }
+
+  /* ── deploy: batches whatever is currently queued for deployment ── */
+  function readyToDeploy(){ return QUEUE.filter(f=>f.status==='pass'); }
+  function buildDeployPlan(){
+    const ready = readyToDeploy();
+    const plan = [];
+    if(ready.length){
+      plan.push({k:'note',t:'user reviews staging: '+ready.map(f=>f.id).join(', '),c:'hi'});
+    } else {
+      plan.push({k:'note',t:'user reviews staging, decides it is ready',c:'hi'});
+    }
+    plan.push({k:'go',s:AUTONOMOUS_COUNT, dur:1200});
+    plan.push({k:'note',t:'deploying '+(ready.length||1)+' feature'+(ready.length===1?'':'s')+' to production…'});
+    plan.push({k:'go',s:AUTONOMOUS_COUNT+1, dur:1200});
+    plan.push({k:'note',t:'testing-live: smoke tests against the live site'});
+    plan.push({k:'okdeploy',t:'live at hittadittsverige.se · verified, not merely merged'});
+    plan.push({k:'deploydone'});
+    return plan;
+  }
+
+  function build(failTwice){
+    const L=+slider.value, plan=[];
+    plan.push({k:'note',t:'pulling from build-queue.md …',c:'hi'});
+    if(L>=5) plan.push({k:'note',t:'build queue empty → auto-pulled from product-backlog.md','c':'hi'});
+    for(let sIdx=0;sIdx<7;sIdx++){
+      plan.push({k:'go',s:sIdx});
+      if(L===1 && sIdx<6) plan.push({k:'hold',t:'level 1: waiting on the user at '+STAGES[sIdx]});
+      if(L===2 && sIdx<6) plan.push({k:'hold',t:'level 2: stage complete, waiting to advance'});
+      if(sIdx===3){
+        plan.push({k:'fail',s:3,t:'acceptance criteria 4 of 9 failed at testing'});
+        plan.push({k:'kick',s:2,t:'context attached'});
+        plan.push({k:'note',t:'dev has the failure and the criteria that produced it'});
+        if(failTwice){
+          plan.push({k:'go',s:3,m:'(retry)'});
+          plan.push({k:'fail',s:3,t:'same criteria failed again'});
+          plan.push({k:'q',t:'✕✕ DOUBLE KICK-BACK'});
+          plan.push({k:'note',t:'feature → QUARANTINED',c:'er'});
+          plan.push({k:'note',t:'branch autonomous/cycle-001/feat-142 deleted',c:'er'});
+          plan.push({k:'note',t:'2 dependent features → SKIPPED',c:'wn'});
+          plan.push({k:'note',t:'escalation.md written · user notified',c:'wn'});
+          plan.push({k:'note',t:'the pipeline stopped instead of thrashing.',c:'hi'});
+          return {plan, halt:true};
+        }
+        plan.push({k:'go',s:3,m:'(retry, passed)'});
+      }
+    }
+    if(L<=3) plan.push({k:'hold',t:'level '+L+': merge needs user approval'});
+    plan.push({k:'go',s:7});
+    plan.push({k:'ok',t:'merged into autonomous/cycle-001 · every state change timestamped'});
+    plan.push({k:'note',t:'queued for deployment. Production untouched until the user deploys',c:'hi'});
+    if(L>=5) plan.push({k:'note',t:'the pipeline keeps circulating on its own, straight back to features for the next one …',c:'hi'});
+    return {plan, halt:false};
+  }
+
+  /* walk one feature through the pipeline at the given autonomy level,
+     consuming its scripted failures in order, following the real
+     kick-back routing table, and inserting the same holds build() uses
+     for a single feature. */
+  function simulateFeature(f, plan, L){
+    const fails=[...f.fails]; let sIdx=0;
+    while(true){
+      plan.push({k:'qmark',id:f.id,st:'run',lbl:'running'});
+      if(sIdx<7){
+        plan.push({k:'go',s:sIdx});
+        if(L===1 && sIdx<6) plan.push({k:'hold',t:'level 1: waiting on the user at '+STAGES[sIdx]});
+        if(L===2 && sIdx<6) plan.push({k:'hold',t:'level 2: stage complete, waiting to advance'});
+        const next=fails[0];
+        if(next && next.stage===sIdx){
+          fails.shift();
+          plan.push({k:'fail',s:sIdx,t:f.id+': failed at '+STAGES[sIdx]});
+          if(next.fatal){
+            plan.push({k:'q',t:'✕✕ DOUBLE KICK-BACK on '+f.id+' at '+STAGES[sIdx]});
+            plan.push({k:'qmark',id:f.id,st:'q',lbl:'quarantined'});
+            plan.push({k:'note',t:f.id+' → QUARANTINED, branch deleted','c':'er'});
+            return true; // quarantined
+          }
+          const target=KICK_TARGET(sIdx);
+          plan.push({k:'kick',s:target,t:'context attached'});
+          sIdx=target;
+          continue;
+        }
+        sIdx++;
+        continue;
+      }
+      // sIdx===7: arriving at merge
+      if(L<=3) plan.push({k:'hold',t:'level '+L+': merge needs user approval'});
+      plan.push({k:'go',s:7});
+      plan.push({k:'ok',t:f.id+' merged into autonomous/cycle-001'});
+      plan.push({k:'qmark',id:f.id,st:'pass',lbl:'queued for deployment'});
+      plan.push({k:'note',t:'pipeline circles straight back to features for the next one','c':'hi'});
+      return false; // not quarantined
+    }
+  }
+
+  function buildQueuePlan(){
+    const L=+slider.value;
+    const plan=[];
+    const outcome={}; /* id -> 'merged' | 'quarantined' | 'skipped', resolved synchronously
+                          as we build the plan, since f.status itself is only ever set later,
+                          asynchronously, during stepQueue's animated playback */
+    let mergedCount=0;
+    plan.push({k:'note',t:'Level '+L+', pulling from build-queue.md one at a time','c':'hi'});
+
+    for(const f of QUEUE){
+      if(f.dep && outcome[f.dep]==='quarantined'){
+        plan.push({k:'qmark',id:f.id,st:'run',lbl:'running'});
+        plan.push({k:'go',s:0});
+        plan.push({k:'fail',s:0,t:f.id+' rejected at features: depends on '+f.dep+', which is quarantined'});
+        plan.push({k:'qmark',id:f.id,st:'skip',lbl:'skipped'});
+        plan.push({k:'note',t:f.id+' never proceeds past features','c':'wn'});
+        outcome[f.id]='skipped';
+        continue;
+      }
+      plan.push({k:'note',t:'pulled '+f.id+' from the queue','c':'hi'});
+      const quarantined = simulateFeature(f, plan, L);
+      outcome[f.id] = quarantined ? 'quarantined' : 'merged';
+      if(!quarantined) mergedCount++;
+    }
+    plan.push({k:'note',t:mergedCount+' feature(s) sitting in staging, queued for deployment','c':'hi'});
+    plan.push({k:'note',t:'build-queue.md is empty. Nothing left to pull, idle until the next one lands.','c':'hi'});
+    return plan;
+  }
+
+  function stepQueue(i, plan, done){
+    if(i>=plan.length){ done&&done(); return; }
+    const a=plan[i];
+    if(a.k==='hold'){
+      waiting=true; log('⏸ '+a.t,'wn'); approveBtn.disabled=false;
+      resumeFn=()=>{ approveBtn.disabled=true; waiting=false; stepQueue(i+1,plan,done); };
+      return;
+    }
+    if(a.k==='qmark'){ const f=QUEUE.find(x=>x.id===a.id); f.status=a.st; f.label=a.lbl;
+      renderQueue(a.st==='run'?a.id:null); }
+    else { renderQueue(); step0(a); }
+    function step0(a){
+      if(a.k==='go'){ clearAll(); for(let j=0;j<a.s;j++) pipe[j].className='pst done';
+        pipe[a.s].className='pst act'; log('→ '+STAGES[a.s]+(a.m?'  '+a.m:'')); }
+      if(a.k==='fail'){ pipe[a.s].className='pst fail'; log('✕ '+a.t,'er'); }
+      if(a.k==='kick'){ log('↩ kick-back → '+STAGES[a.s]+'  ['+a.t+']','wn');
+        clearAll(); for(let j=0;j<a.s;j++) pipe[j].className='pst done'; pipe[a.s].className='pst act'; }
+      if(a.k==='ok'){ pipe.slice(0,AUTONOMOUS_COUNT).forEach(x=>x.className='pst done'); log('✓ '+a.t,'ok'); }
+      if(a.k==='q'){ log(a.t,'er'); }
+      if(a.k==='note'){ log(a.t,a.c||''); }
+    }
+    const dur = a.dur!==undefined ? a.dur : (a.k==='qmark'?260:(a.k==='note'?480:720));
+    const advance=()=>{ if(paused){ pendingResume=advance; return; } stepQueue(i+1,plan,done); };
+    timer=setTimeout(advance, dur);
+  }
+
+  function stepDeploy(i, plan, done){
+    if(i>=plan.length){ done&&done(); return; }
+    const a=plan[i];
+    if(a.k==='deploydone'){
+      readyToDeploy().forEach(f=>{ f.status='deployed'; f.label='deployed'; });
+      renderQueue();
+      timer=setTimeout(()=>stepDeploy(i+1,plan,done), 10);
+      return;
+    }
+    step(0, [a], ()=>stepDeploy(i+1,plan,done));
+  }
+
+  box.querySelector('#drun').onclick =()=>{
+    if(waiting||running)return; reset(); running=true; pauseBtn.disabled=false;
+    resetQueue(); renderQueue();
+    stepQueue(0, buildQueuePlan(), ()=>{ running=false; pauseBtn.disabled=true;
+      if(readyToDeploy().length) deployBtn.disabled=false; });
+  };
+  box.querySelector('#dfail').onclick=()=>{
+    if(waiting||running)return; reset(); running=true; pauseBtn.disabled=false;
+    const {plan,halt}=build(true);
+    step(0,plan,()=>{ running=false; pauseBtn.disabled=true; if(!halt) deployBtn.disabled=false; });
+  };
+  box.querySelector('#ddeploy').onclick=()=>{
+    if(waiting||running)return; running=true; pauseBtn.disabled=false;
+    stepDeploy(0, buildDeployPlan(), ()=>{ running=false; pauseBtn.disabled=true; deployBtn.disabled=true; });
+  };
+  box.querySelector('#dpause').onclick=()=>{
+    if(!running) return;
+    if(!paused){ paused=true; pauseBtn.textContent='Resume'; }
+    else { paused=false; pauseBtn.textContent='Pause';
+      if(pendingResume){ const fn=pendingResume; pendingResume=null; fn(); } }
+  };
+  box.querySelector('#dapprove').onclick=()=>{ if(resumeFn){ const fn=resumeFn; resumeFn=null; fn(); } };
+  box.querySelector('#dreset').onclick=()=>{ reset(); resetQueue(); renderQueue(); };
+  reset();
+}
+exhibitDPA(document.getElementById('dpa-exhibit'));
+</script>
+</body>
+</html>
