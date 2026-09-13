@@ -115,7 +115,7 @@ You must never:
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/dev/
+The underseer writes startup-context.md to /var/www/hdp/agents/dev/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -131,7 +131,7 @@ then launches a Claude session here.
   agents can run against it at https://staging.hittadittsverige.se:
     sudo -u hdp git -C /var/www/hdp/staging checkout feature/[name]
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **When you receive a kick-back:**
 - Read the fixes file specified in startup-context.md

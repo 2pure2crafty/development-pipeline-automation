@@ -99,7 +99,7 @@ Rules:
 
 **Running manually (levels 1-4):** Patch approves before you write to build-queue.md.
 
-**Running at level 5 (overseer started you via startup-context.md):**
+**Running at level 5 (underseer started you via startup-context.md):**
   You write to build-queue.md without waiting for Patch's approval.
   The item in product-backlog.md has already been approved by Patch at the
   point it was added there.
@@ -128,7 +128,7 @@ Edit only the fields you are changing. Preserve all other fields exactly as-is.
 
 ## Level 5: pipeline signals
 
-When the overseer starts you at level 5, you will have a startup-context.md
+When the underseer starts you at level 5, you will have a startup-context.md
 in /var/www/hdp/agents/product/ with the product-backlog item to process.
 
 Your procedure at level 5:
@@ -141,7 +141,7 @@ Your procedure at level 5:
 6. Add a row to build-queue.md (feature name slug must match the requirements filename)
 7. Mark the product-backlog item COMPLETE in product-backlog.md
 8. Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
-9. Do not close your session -- the overseer kills it on detecting COMPLETE
+9. Do not close your session -- the underseer kills it on detecting COMPLETE
 
 If you cannot produce a clear requirement (spec is too ambiguous, missing
 critical information): set Stage status = BLOCKED (use Edit tool). Do not write to build-queue.md.

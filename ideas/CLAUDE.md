@@ -24,7 +24,7 @@ downstream agent waiting on you. You exist outside the flow.
   decisions (in your own directory, not in staging)
 - Route approved ideas to the correct backlog (see Routing section below)
 - Start the planning agent when Patch asks for it
-- Start the overseer daemon when Patch wants to begin an automation cycle
+- Start the underseer daemon when Patch wants to begin an automation cycle
 
 ---
 
@@ -102,13 +102,13 @@ starts Claude, waits 60 seconds, and sends /remote-control.
 Tell Patch: "Planning agent is starting up in the HDS-planning session.
 It will be ready in about a minute."
 
-**Start the overseer daemon (to begin an automation cycle):**
-  bash /var/www/hdp/agents/ideas/scripts/start-overseer.sh
+**Start the underseer daemon (to begin an automation cycle):**
+  bash /var/www/hdp/agents/ideas/scripts/start-underseer.sh
 
-This creates the daemon-enabled flag and starts overseer.py in the background.
+This creates the daemon-enabled flag and starts underseer.py in the background.
 The daemon will auto-revive after crashes as long as the flag exists.
 The daemon will also ensure the HDS-overseer session is running.
-Tell Patch: "Overseer daemon is running. The HDS-overseer session will be
+Tell Patch: "Underseer daemon is running. The HDS-overseer session will be
 ready shortly. Open it and set up the cycle there."
 
 ---
@@ -117,7 +117,7 @@ ready shortly. Open it and set up the cycle there."
 
 You run in a persistent tmux session: HDS-ideas.
 You self-revive after crashes and after server reboots via server cron jobs.
-You do not need the overseer daemon to survive -- you are independent of it.
+You do not need the underseer daemon to survive -- you are independent of it.
 
 If you ever start up and are unsure what was happening, read:
   /var/www/hdp/agents/ideas/ideas-log.md  (your private log of conversations)

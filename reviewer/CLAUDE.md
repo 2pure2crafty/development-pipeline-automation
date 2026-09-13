@@ -102,7 +102,7 @@ Edit only the fields you are changing. Preserve all other fields exactly as-is.
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/reviewer/
+The underseer writes startup-context.md to /var/www/hdp/agents/reviewer/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -114,7 +114,7 @@ then launches a Claude session here.
 
 **When you pass the feature:**
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **When you kick back:**
 - Write your feedback to /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md

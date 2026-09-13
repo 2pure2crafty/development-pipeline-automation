@@ -17,7 +17,7 @@ handoffs and Patch as the final authority.
 
 1. Patch spitballs with the **ideas agent**, which routes approved ideas into one of
    two backlogs depending on whether they need commercial framing first.
-2. The **overseer daemon** (`overseer.py`) polls `pipeline-state.md` every 60 seconds
+2. The **underseer daemon** (`underseer.py`) polls `pipeline-state.md` every 60 seconds
    and drives features through an 8-stage pipeline automatically.
 3. Each pipeline agent runs in its own tmux session, reads a `startup-context.md`
    written by the daemon, does its work, and updates `pipeline-state.md` when done.
@@ -39,7 +39,7 @@ handoffs and Patch as the final authority.
         │ spitballs               ▲▲          ││
         ▼                         read        write
   ┌────────────┐         ┌────────────────────────────────────────────┐
-  │   Ideas    │         │         overseer.py  (daemon)              │
+  │   Ideas    │         │         underseer.py  (daemon)             │
   │   Agent    │         │   polls every 60 s · writes heartbeat      │
   │ HDS-ideas  │         │   starts/kills agent tmux sessions         │
   └─────┬──────┘         │   handles kick-backs · escalates           │
@@ -49,7 +49,7 @@ handoffs and Patch as the final authority.
         │                         │
         ├── product-backlog ───────┤ (Level 5: also auto-fed to Product Agent)
         │                         │
-        └── "start overseer" ─► daemon-enabled flag created
+        └── "start underseer" ─► daemon-enabled flag created
 ```
 
 ---
@@ -188,7 +188,7 @@ execute the inline script.
 | Testing (live) | HDS-testing-live | `agents/testing-live/` | Runs LIVE-SAFE smoke tests against production after deploy; classifies failures as deployment vs. code problems |
 
 The **overseer Claude session** (HDS-overseer) is Patch's conversational interface.
-The **overseer daemon** (`overseer.py`) is the mechanical engine running underneath it.
+The **underseer daemon** (`underseer.py`) is the mechanical engine running underneath it.
 They are separate: the Claude session can crash and restart without stopping the daemon.
 
 ---
@@ -234,8 +234,8 @@ The daemon detects this and routes accordingly:
 | `staging/docs/dev-inbox/` | Fix briefs written by testing/reviewer/ux-ui agents |
 | `staging/docs/acceptance/` | Acceptance criteria documents (one per feature) |
 | `agents/overseer/current-config.md` | Cycle config: autonomy level, stop condition |
-| `agents/overseer/overseer.log` | Daemon activity log |
-| `agents/overseer/overseer-restart.md` | Crash recovery snapshot (overwritten every 60s) |
+| `agents/overseer/underseer.log` | Daemon activity log |
+| `agents/overseer/underseer-restart.md` | Crash recovery snapshot (overwritten every 60s) |
 | `agents/overseer/escalation.md` | Pending escalations requiring Patch input |
 | `agents/overseer/daemon-enabled` | Flag file — daemon auto-revives only while this exists |
 
@@ -246,8 +246,8 @@ The daemon detects this and routes accordingly:
 ### Starting an automation cycle
 
 1. Tell the ideas agent you want to start a cycle.
-2. Ideas agent runs `start-overseer.sh`, which creates `daemon-enabled` and starts
-   `overseer.py` in the background.
+2. Ideas agent runs `start-underseer.sh`, which creates `daemon-enabled` and starts
+   `underseer.py` in the background.
 3. The daemon immediately starts the HDS-overseer Claude session (your interface).
 4. In HDS-overseer, use the intake form to configure and start the cycle.
 5. The daemon picks up the config and begins processing features from build-queue.md.
@@ -260,7 +260,7 @@ the HDS-planning session, waits 60 seconds, and sends `/remote-control`.
 ### Stopping the daemon
 
 ```bash
-kill $(cat /var/www/hdp/agents/overseer/overseer.pid)
+kill $(cat /var/www/hdp/agents/overseer/underseer.pid)
 rm /var/www/hdp/agents/overseer/daemon-enabled
 ```
 
@@ -275,7 +275,7 @@ Removing `daemon-enabled` prevents cron from restarting it.
 | Session | Managed by | Behaviour |
 |---------|-----------|-----------|
 | HDS-ideas | cron (`*/5 * * * *`) | Revives automatically if dead |
-| HDS-overseer | overseer.py daemon | Revived by daemon every 10 polls (10 min) |
+| HDS-overseer | underseer.py daemon | Revived by daemon every 10 polls (10 min) |
 
 ### Pipeline sessions (managed by daemon)
 
@@ -301,18 +301,18 @@ bash /var/www/hdp/agents/ideas/scripts/bootstrap-trust.sh
 ├── ideas/              Ideas agent workspace (always-on)
 │   ├── CLAUDE.md
 │   ├── scripts/
-│   │   ├── start-overseer.sh
+│   │   ├── start-underseer.sh
 │   │   ├── start-planning.sh
 │   │   └── bootstrap-trust.sh
 │   ├── ideas-log.md    Private conversation log
 │   └── memory/         Persistent memory files
-├── overseer/           Overseer workspace
+├── overseer/           Overseer workspace (AI session + underseer daemon)
 │   ├── CLAUDE.md
-│   ├── overseer.py     The daemon
+│   ├── underseer.py    The daemon
 │   ├── current-config.md
 │   ├── escalation.md
-│   ├── overseer.log
-│   ├── overseer-restart.md
+│   ├── underseer.log
+│   ├── underseer-restart.md
 │   └── daemon-enabled  (created when cycle is active)
 ├── planning/           Planning agent workspace
 ├── product/            Product agent workspace

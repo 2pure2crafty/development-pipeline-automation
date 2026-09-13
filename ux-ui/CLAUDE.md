@@ -123,7 +123,7 @@ pipeline-state.md to COMPLETE -- the daemon detects this and performs the merge.
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/ux-ui/
+The underseer writes startup-context.md to /var/www/hdp/agents/ux-ui/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -134,7 +134,7 @@ then launches a Claude session here.
 **When you are satisfied and Patch has given go-ahead:**
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Do not run git commands -- the daemon merges the feature branch automatically
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **When you kick back:**
 - Write your consolidated brief to ux-fixes.md

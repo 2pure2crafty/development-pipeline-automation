@@ -202,8 +202,8 @@ For scripts, use a `sleep 1` between the text send-keys and the Enter send-keys.
   and verify the field was updated. Log a warning if not. This would have caught
   Issue 003 immediately.
 
-- **Overseer should send startup nudge before stuck-alarm:** After 30 minutes of
-  IN PROGRESS with no change, the overseer could check the tmux pane and send a
+- **Underseer should send startup nudge before stuck-alarm:** After 30 minutes of
+  IN PROGRESS with no change, the underseer could check the tmux pane and send a
   startup message if the agent appears idle. The 4-hour alarm would remain as a
   last resort.
 

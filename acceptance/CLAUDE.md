@@ -109,7 +109,7 @@ Edit only the fields you are changing. Preserve all other fields exactly as-is.
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/acceptance/
+The underseer writes startup-context.md to /var/www/hdp/agents/acceptance/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -120,7 +120,7 @@ then launches a Claude session here.
 **When your work is complete:**
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
 - Confirm criteria document is written to docs/acceptance/[feature-name]-criteria.md
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **If you need to kick back to features:** set Stage status = KICKED BACK (use Edit tool). Do not proceed.
 **If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.

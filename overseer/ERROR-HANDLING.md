@@ -1,6 +1,7 @@
-# Error Handling -- Overseer Reference
+# Error Handling -- Underseer & Overseer Reference
 
-Scenarios the overseer daemon and Claude session need to handle gracefully.
+Scenarios the underseer daemon and the overseer Claude session need to handle
+gracefully.
 
 ---
 
@@ -10,7 +11,7 @@ Scenarios the overseer daemon and Claude session need to handle gracefully.
 for that agent no longer exists. The daemon detects this via the stuck-agent
 check (4 hours, no state change) OR via tmux has-session returning false.
 
-**Detection:** overseer.py checks agent_session_alive() on each poll when
+**Detection:** underseer.py checks agent_session_alive() on each poll when
 status is IN PROGRESS. If session is gone and status has not changed:
 
 **Action:**
@@ -31,33 +32,33 @@ status is IN PROGRESS. If session is gone and status has not changed:
 ## 2. Token exhaustion (Claude session hits its 5-hour limit mid-task)
 
 **Symptom:** Same as agent session crash -- session ends without a state
-update. Indistinguishable from a crash at the overseer level.
+update. Indistinguishable from a crash at the underseer level.
 
 **Detection:** Same stuck-agent mechanism (4-hour threshold).
 
 **Action:** Same as #1 above. Patch inspects and restarts.
 
 **Prevention:** The overseer Claude session itself can monitor agent session
-age. If an agent session has been running for more than 4 hours, the daemon
-writes a WARNING (not escalation) to overseer.log so Patch is aware before
-the session actually dies.
+age. If an agent session has been running for more than 4 hours, the
+underseer writes a WARNING (not escalation) to underseer.log so Patch is
+aware before the session actually dies.
 
 ---
 
-## 3. Overseer daemon crash or server reboot
+## 3. Underseer daemon crash or server reboot
 
-**Symptom:** overseer.pid exists but the process is dead. Pipeline stalls.
+**Symptom:** underseer.pid exists but the process is dead. Pipeline stalls.
 Agents may finish their work but nothing acts on the state change.
 
 **Detection and auto-restart** -- cron jobs to add (sudo crontab -e):
 
 ```bash
-# --- Overseer daemon: only revives if daemon-enabled flag exists ---
+# --- Underseer daemon: only revives if daemon-enabled flag exists ---
 # Every 5 minutes: restart if dead and flag exists
-*/5 * * * * [ -f /var/www/hdp/agents/overseer/daemon-enabled ] && pgrep -f overseer.py > /dev/null || ([ -f /var/www/hdp/agents/overseer/daemon-enabled ] && python3 /var/www/hdp/agents/overseer/overseer.py >> /var/www/hdp/agents/overseer/overseer.log 2>&1 &)
+*/5 * * * * [ -f /var/www/hdp/agents/overseer/daemon-enabled ] && pgrep -f underseer.py > /dev/null || ([ -f /var/www/hdp/agents/overseer/daemon-enabled ] && python3 /var/www/hdp/agents/overseer/underseer.py >> /var/www/hdp/agents/overseer/underseer.log 2>&1 &)
 
 # On reboot: restart daemon only if flag exists (flag persists across reboots)
-@reboot sleep 30 && [ -f /var/www/hdp/agents/overseer/daemon-enabled ] && python3 /var/www/hdp/agents/overseer/overseer.py >> /var/www/hdp/agents/overseer/overseer.log 2>&1 &
+@reboot sleep 30 && [ -f /var/www/hdp/agents/overseer/daemon-enabled ] && python3 /var/www/hdp/agents/overseer/underseer.py >> /var/www/hdp/agents/overseer/underseer.log 2>&1 &
 
 # --- Ideas agent: always revives, no flag check ---
 # Every 5 minutes: restart HDS-ideas session if dead
@@ -73,11 +74,11 @@ Note: the ideas agent revival uses a longer sleep (45s) so it starts after the d
   - Daemon reads current pipeline-state.md on startup and resumes from
     wherever it left off. No state is lost: pipeline-state.md is the source
     of truth.
-  - Read overseer-restart.md for the state snapshot at the time of the crash.
+  - Read underseer-restart.md for the state snapshot at the time of the crash.
     It tells you whether an agent session was alive and what to do.
 
 **If Patch needs to manually resume after a reboot:**
-  1. Read /var/www/hdp/agents/overseer/overseer-restart.md
+  1. Read /var/www/hdp/agents/overseer/underseer-restart.md
   2. Follow the recovery instructions in that file
   3. Start the daemon if it has not auto-restarted
 
@@ -87,7 +88,7 @@ Note: the ideas agent revival uses a longer sleep (45s) so it starts after the d
 
 **Symptom:** merge or branch creation fails (conflict, permissions, network).
 
-**Detection:** overseer.py wraps all git commands in subprocess calls and
+**Detection:** underseer.py wraps all git commands in subprocess calls and
 checks returncode. On non-zero return: escalate immediately.
 
 **Action:**
@@ -159,7 +160,7 @@ The escalation message notes which features were quarantined and skipped.
 **Symptom:** An agent starts but has no startup-context.md to read. It
 will not know what feature to work on.
 
-**Prevention:** overseer.py always writes startup-context.md BEFORE calling
+**Prevention:** underseer.py always writes startup-context.md BEFORE calling
 start_agent(). If write_startup_context() fails, start_agent() is not called.
 
 **If it happens anyway:** the agent's CLAUDE.md tells it to halt and report
@@ -174,6 +175,6 @@ When Patch resolves any escalation:
 1. Fix the underlying issue (code, config, git state, etc.)
 2. Verify pipeline-state.md reflects the correct current state
 3. Clear or archive the entry in escalation.md
-4. Restart the daemon: python3 /var/www/hdp/agents/overseer/overseer.py &
+4. Restart the daemon: python3 /var/www/hdp/agents/overseer/underseer.py &
 5. Tail the log to confirm it resumes correctly:
-     tail -f /var/www/hdp/agents/overseer/overseer.log
+     tail -f /var/www/hdp/agents/overseer/underseer.log

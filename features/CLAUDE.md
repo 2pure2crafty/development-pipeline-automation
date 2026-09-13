@@ -53,7 +53,7 @@ Every feature gets its own branch off the current cycle branch:
   autonomous/cycle-001
     └── feature/[short-descriptive-name]
 
-The overseer will tell you the cycle branch name at startup.
+The underseer will tell you the cycle branch name at startup.
 Name the feature branch in your spec so dev knows what to create.
 
 ---
@@ -61,7 +61,7 @@ Name the feature branch in your spec so dev knows what to create.
 ## Dependency tracking
 
 Every spec you write must include a depends-on declaration.
-This is written to build-queue.md by the overseer, but you must
+This is written to build-queue.md by the underseer, but you must
 determine and state the dependency clearly in your spec.
 
 Rules:
@@ -112,7 +112,7 @@ Feedback from product-reviewer will be in:
   /var/www/hdp/staging/docs/dev-inbox/reviewer-feedback.md
 
 Read it, update build-phase.md to reflect the corrected spec, then signal
-COMPLETE so the overseer restarts the pipeline from acceptance.
+COMPLETE so the underseer restarts the pipeline from acceptance.
 
 ---
 
@@ -138,7 +138,7 @@ Edit only the fields you are changing. Preserve all other fields exactly as-is.
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/features/
+The underseer writes startup-context.md to /var/www/hdp/agents/features/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -151,7 +151,7 @@ then launches a Claude session here.
 - Write your spec to /var/www/hdp/staging/docs/dev-inbox/build-phase.md
 - Fill in the depends-on field for this feature in build-queue.md
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **If startup-context.md is missing:** set Stage status = BLOCKED (use Edit tool). Do not proceed.
 

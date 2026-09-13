@@ -98,7 +98,7 @@ Edit only the fields you are changing. Preserve all other fields exactly as-is.
 
 ## How you are started
 
-The overseer writes startup-context.md to /var/www/hdp/agents/integration-testing/
+The underseer writes startup-context.md to /var/www/hdp/agents/integration-testing/
 then launches a Claude session here.
 
 **First actions on every session start:**
@@ -108,7 +108,7 @@ then launches a Claude session here.
 
 **When all tests pass:**
 - Update pipeline-state.md: Stage status = COMPLETE (use Edit tool)
-- Do not close your session -- the overseer kills it on detecting COMPLETE
+- Do not close your session -- the underseer kills it on detecting COMPLETE
 
 **When tests fail:**
 - Write failures to integration-fixes.md

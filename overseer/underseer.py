@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-HDS Pipeline Overseer Daemon
+HDS Pipeline Underseer Daemon
 
 Polls pipeline-state.md every 60 seconds and drives the agent pipeline
 based on the state machine defined in PIPELINE-LOGIC.md.
 
-Run:  python3 /var/www/hdp/agents/overseer/overseer.py
+Run:  python3 /var/www/hdp/agents/overseer/underseer.py
 Stop: Ctrl-C or kill the process (it writes a PID file)
 
 The overseer Claude session (HDS-overseer tmux) is Patch's interface.
-This script is the mechanical engine that runs underneath it.
+This script, the underseer, is the mechanical engine that runs underneath it.
 """
 
 import os
@@ -33,9 +33,9 @@ BUILD_QUEUE      = STAGING_DOCS / "build-queue.md"
 PRODUCT_BACKLOG  = STAGING_DOCS / "product-backlog.md"
 CYCLE_CONFIG     = AGENT_ROOT / "overseer" / "current-config.md"
 ESCALATION       = AGENT_ROOT / "overseer" / "escalation.md"
-DAEMON_LOG       = AGENT_ROOT / "overseer" / "overseer.log"
-PID_FILE         = AGENT_ROOT / "overseer" / "overseer.pid"
-RESTART_FILE     = AGENT_ROOT / "overseer" / "overseer-restart.md"
+DAEMON_LOG       = AGENT_ROOT / "overseer" / "underseer.log"
+PID_FILE         = AGENT_ROOT / "overseer" / "underseer.pid"
+RESTART_FILE     = AGENT_ROOT / "overseer" / "underseer-restart.md"
 DAEMON_ENABLED   = AGENT_ROOT / "overseer" / "daemon-enabled"
 SCRIPTS_DIR      = AGENT_ROOT / "overseer" / "scripts"
 
@@ -759,10 +759,10 @@ Read your CLAUDE.md for full instructions.
 
 def shutdown_daemon():
     """
-    Cleanly shut down the overseer daemon and remove the daemon-enabled flag.
+    Cleanly shut down the underseer daemon and remove the daemon-enabled flag.
     Called by the overseer Claude session when a cycle completes successfully.
-    Run this via: python3 -c "from overseer import shutdown_daemon; shutdown_daemon()"
-    Or simply: kill $(cat /var/www/hdp/agents/overseer/overseer.pid)
+    Run this via: python3 -c "from underseer import shutdown_daemon; shutdown_daemon()"
+    Or simply: kill $(cat /var/www/hdp/agents/overseer/underseer.pid)
               rm /var/www/hdp/agents/overseer/daemon-enabled
     """
     DAEMON_ENABLED.unlink(missing_ok=True)
@@ -881,7 +881,7 @@ def _cycle_complete(cycle: str, config: dict):
 
 def write_heartbeat(state: dict, config: dict):
     """
-    Write overseer-restart.md every poll. After a server crash, any Claude
+    Write underseer-restart.md every poll. After a server crash, any Claude
     session can read this file to understand exactly what was happening and
     what to do to resume.
     """
@@ -903,7 +903,7 @@ def write_heartbeat(state: dict, config: dict):
         recovery_steps = (
             "No cycle was running when the daemon stopped.\n"
             "Simply start the daemon and it will wait for your instruction:\n\n"
-            "  python3 /var/www/hdp/agents/overseer/overseer.py &\n"
+            "  python3 /var/www/hdp/agents/overseer/underseer.py &\n"
         )
     else:
         # Check if the pipeline agent session is alive
@@ -927,9 +927,9 @@ Agent session:   {session} -- {session_status}
             recovery_steps = (
                 f"The agent session {session} is still alive. The agent may still\n"
                 f"be working. Start the daemon and it will resume monitoring:\n\n"
-                f"  python3 /var/www/hdp/agents/overseer/overseer.py &\n\n"
+                f"  python3 /var/www/hdp/agents/overseer/underseer.py &\n\n"
                 f"Tail the log to confirm:\n"
-                f"  tail -f /var/www/hdp/agents/overseer/overseer.log\n"
+                f"  tail -f /var/www/hdp/agents/overseer/underseer.log\n"
             )
         else:
             recovery_steps = (
@@ -942,10 +942,10 @@ Agent session:   {session} -- {session_status}
                 f"  3. Decide: restart the agent from scratch, or recover manually\n"
                 f"  4. If restarting from scratch: update pipeline-state.md to reflect\n"
                 f"     where you want to restart from\n"
-                f"  5. Start the daemon: python3 /var/www/hdp/agents/overseer/overseer.py &\n"
+                f"  5. Start the daemon: python3 /var/www/hdp/agents/overseer/underseer.py &\n"
             )
 
-    content = f"""# Overseer State -- Last Heartbeat
+    content = f"""# Underseer State -- Last Heartbeat
 
 **Written:** {now}
 **Daemon PID:** {pid}
@@ -970,17 +970,17 @@ If you are reading this after a server crash, daemon crash, or unexpected stop:
   /var/www/hdp/staging/docs/pipeline-state.md   (current pipeline state)
   /var/www/hdp/agents/overseer/current-config.md (cycle configuration)
   /var/www/hdp/agents/overseer/escalation.md     (any pending escalations)
-  /var/www/hdp/agents/overseer/overseer.log      (daemon activity log)
+  /var/www/hdp/agents/overseer/underseer.log     (daemon activity log)
   /var/www/hdp/staging/docs/build-queue.md       (feature queue)
 
 ---
 
 ## Daemon commands
 
-Start:  python3 /var/www/hdp/agents/overseer/overseer.py &
-Stop:   kill $(cat /var/www/hdp/agents/overseer/overseer.pid)
-Status: ps aux | grep overseer.py
-Log:    tail -f /var/www/hdp/agents/overseer/overseer.log
+Start:  python3 /var/www/hdp/agents/overseer/underseer.py &
+Stop:   kill $(cat /var/www/hdp/agents/overseer/underseer.pid)
+Status: ps aux | grep underseer.py
+Log:    tail -f /var/www/hdp/agents/overseer/underseer.log
 """
     RESTART_FILE.write_text(content)
 
@@ -992,11 +992,11 @@ Log:    tail -f /var/www/hdp/agents/overseer/overseer.log
 def main():
     # Write PID file
     PID_FILE.write_text(str(os.getpid()))
-    log("Overseer daemon started.")
+    log("Underseer daemon started.")
 
     # Handle clean shutdown
     def shutdown(sig, frame):
-        log("Overseer daemon stopping.")
+        log("Underseer daemon stopping.")
         PID_FILE.unlink(missing_ok=True)
         sys.exit(0)
 
@@ -1029,7 +1029,7 @@ def main():
         except Exception as e:
             tb = traceback.format_exc()
             log(f"ERROR in main loop: {e}\n{tb}")
-            escalate("Overseer daemon encountered an unhandled exception.",
+            escalate("Underseer daemon encountered an unhandled exception.",
                      f"{e}\n\n{tb}")
 
         time.sleep(POLL_INTERVAL)

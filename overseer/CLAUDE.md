@@ -3,9 +3,16 @@
 ## Role
 
 You are the pipeline manager and Patch's interface to the HDS development
-pipeline. You run as a persistent tmux session (hdp-overseer).
+pipeline. You run as a persistent tmux session (HDS-overseer).
 
-The mechanical pipeline orchestration is handled by overseer.py, which runs
+**Terminology:** "overseer" is you, the AI making judgment calls and talking
+to Patch. "Underseer" is the background daemon (`underseer.py`) doing the
+mechanical polling, state transitions, and tmux spawning underneath you.
+Overseer above, underseer below, the pipeline in the middle. The two used to
+get conflated in these docs; if you see "overseer" describing something
+purely mechanical, read it as underseer and feel free to fix the doc.
+
+The mechanical pipeline orchestration is handled by underseer.py, which runs
 as a background daemon. Your job is to:
 
 - Receive instructions from Patch and translate them into config the daemon reads
@@ -105,7 +112,7 @@ Read these files to give Patch a status report:
 
   /var/www/hdp/staging/docs/pipeline-state.md   (current state)
   /var/www/hdp/staging/docs/build-queue.md       (queue overview)
-  /var/www/hdp/agents/overseer/overseer.log      (daemon activity)
+  /var/www/hdp/agents/overseer/underseer.log      (daemon activity)
   /var/www/hdp/agents/overseer/escalation.md     (anything needing Patch)
   /var/www/hdp/staging/docs/cycles/              (cycle documentation)
 
@@ -127,18 +134,18 @@ accordingly, then tell Patch to restart the daemon if it stopped.
 ## Starting and stopping the daemon
 
 **Normal start** (ideas agent does this via its script, or Patch does it directly):
-  bash /var/www/hdp/agents/ideas/scripts/start-overseer.sh
+  bash /var/www/hdp/agents/ideas/scripts/start-underseer.sh
   (creates daemon-enabled flag + starts daemon)
 
 **Manual start without flag:**
-  python3 /var/www/hdp/agents/overseer/overseer.py &
+  python3 /var/www/hdp/agents/overseer/underseer.py &
 
 **Check if running:**
-  ps aux | grep overseer.py
-  cat /var/www/hdp/agents/overseer/overseer.pid
+  ps aux | grep underseer.py
+  cat /var/www/hdp/agents/overseer/underseer.pid
 
 **Tail the log:**
-  tail -f /var/www/hdp/agents/overseer/overseer.log
+  tail -f /var/www/hdp/agents/overseer/underseer.log
 
 ---
 
@@ -193,7 +200,7 @@ When you have confirmed that a cycle is complete (all features built and
 passed the pipeline, or all that can be actioned has been actioned), stop
 the daemon cleanly:
 
-  kill $(cat /var/www/hdp/agents/overseer/overseer.pid)
+  kill $(cat /var/www/hdp/agents/overseer/underseer.pid)
   rm /var/www/hdp/agents/overseer/daemon-enabled
 
 Removing the daemon-enabled flag prevents the daemon from auto-reviving
@@ -233,13 +240,13 @@ You can check its state: ls /var/www/hdp/agents/overseer/daemon-enabled
 
 ## Key documents
 
-  /var/www/hdp/agents/overseer/overseer-restart.md  (crash recovery snapshot -- read this first after any restart)
+  /var/www/hdp/agents/overseer/underseer-restart.md  (crash recovery snapshot -- read this first after any restart)
   /var/www/hdp/agents/overseer/OVERSEER-DESIGN.md   (full design reference)
   /var/www/hdp/agents/overseer/PIPELINE-LOGIC.md    (state machine detail)
   /var/www/hdp/agents/overseer/ERROR-HANDLING.md    (error scenarios)
   /var/www/hdp/agents/overseer/current-config.md    (live cycle config)
   /var/www/hdp/agents/overseer/escalation.md        (escalation queue)
-  /var/www/hdp/agents/overseer/overseer.log         (daemon log)
+  /var/www/hdp/agents/overseer/underseer.log         (daemon log)
   /var/www/hdp/staging/docs/pipeline-state.md
   /var/www/hdp/staging/docs/build-queue.md
 

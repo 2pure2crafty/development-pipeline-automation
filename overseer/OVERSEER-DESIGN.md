@@ -1,55 +1,67 @@
-# Overseer Agent — Design Document
+# Pipeline Orchestration — Design Document
 
 Everything agreed in conversation before the CLAUDE.md is written.
 Use this as the source of truth when writing the overseer CLAUDE.md.
 
+**Terminology:** the overseer is the AI persona (Patch's interface, judgment
+calls, escalations). The underseer is `underseer.py`, the background daemon
+doing the mechanical polling, state transitions, and tmux spawning underneath
+it. Most of the step-by-step mechanics below (spinning up agents, killing
+sessions, merging branches, writing pipeline-state.md) are underseer work;
+"overseer" below is reserved for the moments Patch is actually being talked to.
+
 ---
 
-## What the overseer is
+## What the underseer is
 
-The overseer is the always-on pipeline manager. It is one of only two agents
-that run permanently (the other is ideas). Every other agent is spun up by the
-overseer when it has work to do and killed when it hands off.
+The underseer is the always-on daemon. It is one of only two things that run
+permanently (the other is the ideas agent). Every pipeline agent is spun up by
+the underseer when it has work to do and killed when it hands off. The overseer
+Claude session runs alongside it as Patch's interface and is revived by the
+underseer if it dies.
 
-The overseer never deploys. It works entirely within staging. The deploy agent
+The underseer never deploys. It works entirely within staging. The deploy agent
 only ever receives instructions directly from Patch.
 
 ---
 
 ## Autonomy levels
 
-The overseer can be set to run at any of four levels. Patch specifies the level
-and optionally a stop condition (specific build phase ID, or unlimited).
+The underseer can be set to run at any of five levels. Patch specifies the
+level and optionally a stop condition (specific build phase ID, or unlimited)
+via the overseer.
 
 **Level 1 -- monitor and report.**
-Overseer observes the pipeline state and tells Patch what is happening and what
-should happen next. Nothing moves without Patch's explicit instruction. Overseer
-is a dashboard.
+The underseer takes no automated action. The overseer observes the pipeline
+state and tells Patch what is happening and what should happen next. Nothing
+moves without Patch's explicit instruction. The overseer is a dashboard.
 
 **Level 2 -- Patch's interface to the pipeline.**
-Patch talks only to the overseer. Overseer spins up the correct agent, passes
-the work, receives output, reports to Patch, and waits for go-ahead before each
-handoff. Every handoff requires Patch's approval. The relay burden shifts from
-Patch to overseer but Patch remains in every decision.
+Patch talks only to the overseer. The underseer spins up the correct agent,
+passes the work, and stops at each handoff; the overseer reports the result to
+Patch and waits for go-ahead before the underseer advances. Every handoff
+requires Patch's approval. The relay burden shifts from Patch to the overseer,
+but Patch remains in every decision.
 
 **Level 3 -- autonomous staging pipeline.**
-Overseer runs the full pipeline from features through to ux-ui sign-off without
-Patch's involvement. Stops at the end of each feature and reports:
-"Feature X has passed ux-ui and is ready to merge. Merge and continue, or stop?"
-Patch makes the merge decision. Overseer does not merge at level 3.
+The underseer runs the full pipeline from features through to ux-ui sign-off
+without Patch's involvement. It stops at the end of each feature and the
+overseer reports: "Feature X has passed ux-ui and is ready to merge. Merge and
+continue, or stop?" Patch makes the merge decision. Nothing merges at level 3.
 
 **Level 4 -- autonomous end-to-end development.**
-Overseer runs the full pipeline, merges completed features into the cycle branch,
-runs housekeeping, pulls the next queued item, and starts the next cycle without
-Patch. Escalates to Patch only on: double kick-back on the same issue, a BLOCKED
-state no agent can resolve, or an empty build queue.
-The overseer never merges into staging main and never deploys.
+The underseer runs the full pipeline, merges completed features into the cycle
+branch, runs housekeeping, pulls the next queued item, and starts the next
+cycle without Patch. It escalates (via the overseer) only on: double kick-back
+on the same issue, a BLOCKED state no agent can resolve, or an empty build
+queue. The underseer never merges into staging main and never deploys.
 
 ---
 
 ## The autonomous cycle
 
-Each time the overseer is set to level 3 or 4, it creates an autonomous cycle.
+Each time a cycle is set to level 3 or 4, the underseer drives it as an
+autonomous cycle.
 
 **Cycle ID format:** cycle-001, cycle-002, cycle-003 (incrementing)
 
@@ -106,7 +118,7 @@ Structure:
   Kick-back count: [n] (resets to 0 when stage advances)
   Last updated: [timestamp]
 
-Each agent updates pipeline-state.md when it finishes. Overseer reads it
+Each agent updates pipeline-state.md when it finishes. The underseer reads it
 to know when to act.
 
 ---
@@ -135,61 +147,61 @@ If it depends on a feature not yet complete, it states the ID of that feature.
 
 ---
 
-## Level 4 overseer flow -- step by step
+## Level 4 underseer flow -- step by step
 
 1.  Patch sets level 4, specifies queue or unlimited
-2.  Overseer creates cycle ID, creates cycle branch (autonomous/cycle-00n)
-3.  Overseer creates cycle-active.md
-4.  Overseer reads first QUEUED item with no unresolved dependencies from build-queue.md
-5.  Overseer marks it ACTIVE in build-queue.md
-6.  Overseer updates pipeline-state.md
-7.  Overseer spins up features agent, passes: feature name, cycle ID, cycle branch
+2.  The underseer creates cycle ID, creates cycle branch (autonomous/cycle-00n)
+3.  The underseer creates cycle-active.md
+4.  The underseer reads first QUEUED item with no unresolved dependencies from build-queue.md
+5.  The underseer marks it ACTIVE in build-queue.md
+6.  The underseer updates pipeline-state.md
+7.  The underseer spins up features agent, passes: feature name, cycle ID, cycle branch
 8.  Features writes spec to build-phase-current.md, fills in depends-on in build-queue.md,
     updates pipeline-state.md to COMPLETE
-9.  Overseer detects COMPLETE, kills features agent
-10. Overseer spins up acceptance agent
+9.  The underseer detects COMPLETE, kills features agent
+10. The underseer spins up acceptance agent
 11. Acceptance writes criteria doc to /docs/acceptance/[feature]-criteria.md,
     updates pipeline-state.md to COMPLETE
-12. Overseer detects COMPLETE, kills acceptance agent
-13. Overseer spins up dev agent, passes: feature name, branch name, criteria doc location
+12. The underseer detects COMPLETE, kills acceptance agent
+13. The underseer spins up dev agent, passes: feature name, branch name, criteria doc location
 14. Dev builds on feature branch off cycle branch, writes deployment-note.md,
     updates pipeline-state.md to COMPLETE
-15. Overseer detects COMPLETE, kills dev agent
-16. Overseer spins up acceptance-testing
+15. The underseer detects COMPLETE, kills dev agent
+16. The underseer spins up acceptance-testing
 17. Acceptance-testing runs criteria:
       PASS: updates pipeline-state.md COMPLETE
-            Overseer kills acceptance-testing, spins up integration-testing
+            The underseer kills acceptance-testing, spins up integration-testing
       KICK BACK: updates pipeline-state.md KICKED BACK, increments kick-back count
-            Overseer kills acceptance-testing
+            The underseer kills acceptance-testing
             If kick-back count < 2: spins up dev with kick-back context
             If kick-back count = 2: STOP, escalate to Patch
 18. Integration-testing runs:
       PASS: updates pipeline-state.md COMPLETE
-            Overseer kills integration-testing, spins up product-reviewer
+            The underseer kills integration-testing, spins up product-reviewer
       KICK BACK: updates pipeline-state.md KICKED BACK, increments kick-back count
-            Overseer kills integration-testing
+            The underseer kills integration-testing
             If kick-back count < 2: spins up dev with kick-back context
             If kick-back count = 2: STOP, escalate to Patch
 19. Product-reviewer assesses:
       PASS: updates pipeline-state.md COMPLETE
-            Overseer kills product-reviewer, spins up ux-ui
+            The underseer kills product-reviewer, spins up ux-ui
       KICK BACK: updates pipeline-state.md KICKED BACK, increments kick-back count
-            Overseer kills product-reviewer
+            The underseer kills product-reviewer
             If kick-back count < 2: spins up features with kick-back context
             If kick-back count = 2: STOP, escalate to Patch
 20. UX-ui reviews:
       KICK BACK: updates pipeline-state.md KICKED BACK, increments kick-back count
-            Overseer kills ux-ui
+            The underseer kills ux-ui
             If kick-back count < 2: spins up dev with kick-back context
             If kick-back count = 2: STOP, escalate to Patch
       PASS: updates pipeline-state.md COMPLETE
-            Overseer kills ux-ui
-21. Overseer merges feature branch into cycle branch
-22. Overseer runs housekeeping:
+            The underseer kills ux-ui
+21. The underseer merges feature branch into cycle branch
+22. The underseer runs housekeeping:
       - Moves completed phase from build-phase-current.md to cycle-active.md
       - Marks phase COMPLETE in build-queue.md
       - Updates pipeline-state.md
-23. Overseer checks build-queue.md for next QUEUED item with no unresolved dependencies
+23. The underseer checks build-queue.md for next QUEUED item with no unresolved dependencies
       If found: go to step 4
       If empty: update cycle-active.md with summary, update pipeline-state.md,
                 notify Patch: "Cycle complete. N phases built. Awaiting your review."
@@ -199,18 +211,18 @@ If it depends on a feature not yet complete, it states the ID of that feature.
 ## Double kick-back and feature skipping
 
 When a feature reaches kick-back count 2 on any stage:
-1. Overseer marks feature as QUARANTINED in build-queue.md
-2. Overseer resets cycle branch to pre-feature state
-3. Overseer records the quarantine in cycle-active.md with reason
-4. Overseer checks remaining QUEUED features:
+1. The underseer marks feature as QUARANTINED in build-queue.md
+2. The underseer resets cycle branch to pre-feature state
+3. The underseer records the quarantine in cycle-active.md with reason
+4. The underseer checks remaining QUEUED features:
      - Features with depends-on = quarantined feature ID: mark SKIPPED
      - Features with no dependency on quarantined feature: proceed normally
-5. Overseer continues cycle with remaining eligible features
+5. The underseer continues cycle with remaining eligible features
 6. At end of cycle, report to Patch includes quarantined and skipped features
 
 ---
 
-## Escalation conditions -- overseer stops regardless of level
+## Escalation conditions -- underseer stops regardless of level
 
 - Kick-back count reaches 2 on the same issue
 - Any agent sets pipeline-state to BLOCKED (not KICKED BACK)
@@ -224,7 +236,7 @@ When a feature reaches kick-back count 2 on any stage:
 ## Housekeeping -- when it happens
 
 Housekeeping happens after live-testing passes, before the next branch opens.
-At level 4, the overseer handles the staging-side housekeeping (build-phase-current
+At level 4, the underseer handles the staging-side housekeeping (build-phase-current
 to cycle-active). The post-deployment housekeeping (cycle-active to archive) happens
 when Patch intervenes and closes the cycle.
 
@@ -238,7 +250,7 @@ when Patch intervenes and closes the cycle.
 
 ---
 
-## What the overseer tells each agent at startup
+## What the underseer tells each agent at startup
 
 - Feature name
 - Cycle ID and cycle branch name

@@ -7,7 +7,7 @@ Automation. Read this before spinning up the DPA on a new project.
 
 ## 1. File ownership and the daemon user
 
-**Problem:** The overseer daemon writes to files in two different places:
+**Problem:** The underseer daemon writes to files in two different places:
 - Its own working files (PID file, log, daemon-enabled flag) in `agents/overseer/`
 - Shared staging docs (pipeline-state.md, build-queue.md, etc.) in `staging/docs/`
 
@@ -64,13 +64,13 @@ cd /path/to/new/agent && claude --print "ready"
 
 ## 3. pgrep matching its own caller
 
-**Problem:** `pgrep -f overseer.py` in a cron job (or a bash command run by
+**Problem:** `pgrep -f underseer.py` in a cron job (or a bash command run by
 a tool) will match any bash process whose command line contains the string
-"overseer.py" — including the cron line itself, or a tool evaluation string.
+"underseer.py" — including the cron line itself, or a tool evaluation string.
 This causes the cron to think the daemon is running when it isn't.
 
-**Fix:** Use a more specific pattern: `pgrep -f "python3.*overseer.py"`.
-This only matches an actual python3 process running overseer.py.
+**Fix:** Use a more specific pattern: `pgrep -f "python3.*underseer.py"`.
+This only matches an actual python3 process running underseer.py.
 
 ---
 
@@ -114,14 +114,14 @@ new always-on session you add, follow the same pattern.
 
 ## 6. Startup context is stage-specific — don't use a single template
 
-**Problem:** If the overseer writes the same startup-context.md to every
+**Problem:** If the underseer writes the same startup-context.md to every
 agent (e.g. always including a `Spec:` field), agents that run before the
 spec exists will look for a file that isn't there yet, and agents that should
 be reviewing against a product requirement will anchor to the spec instead —
 introducing a subtle bias.
 
 **Fix:** Generate stage-specific startup-context.md content. See
-`overseer/overseer.py` `write_startup_context()` for the reference
+`overseer/underseer.py` `write_startup_context()` for the reference
 implementation. Key rules:
 - `features` gets `Requirements:` (product req doc), not `Spec:`
 - `testing-staging` gets `Criteria:` as primary, `Spec:` as secondary context
@@ -182,10 +182,10 @@ even though `id` on a fresh terminal shows the group correctly.
 regardless of what the current session's group list looks like:
 
 ```bash
-sg hdp -c "python3 '$OVERSEER_PY' >> '$LOG' 2>&1 &"
+sg hdp -c "python3 '$UNDERSEER_PY' >> '$LOG' 2>&1 &"
 ```
 
-This is now the default in `start-overseer.sh`. On a fresh project, add it
+This is now the default in `start-underseer.sh`. On a fresh project, add it
 from the start so you never depend on group inheritance being active.
 
 The always-on HDS-ideas session will also lack the group until it is
@@ -407,8 +407,8 @@ meant doing the merge itself.
    fi
    ```
 
-3. **Overseer monitoring:** If the staging repo's current branch changes to anything
-   other than the expected cycle branch or the current feature branch, the overseer
+3. **Underseer monitoring:** If the staging repo's current branch changes to anything
+   other than the expected cycle branch or the current feature branch, the underseer
    should escalate immediately rather than waiting for the stuck-agent alarm.
 
 **Generalising:** On any new DPA project, add the git prohibition to agent CLAUDE.mds

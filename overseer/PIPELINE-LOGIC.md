@@ -1,6 +1,6 @@
 # Pipeline Logic -- State Machine Reference
 
-This document is the detailed decision table for overseer.py.
+This document is the detailed decision table for underseer.py, the daemon.
 For design rationale, see OVERSEER-DESIGN.md.
 
 ---
@@ -123,24 +123,28 @@ Always escalate to Patch immediately. Do not retry.
 
 ## Autonomy level modifiers
 
-Level 1: Overseer reads state and reports to Patch. Takes no automated action.
-         All decisions go back to Patch.
+Level 1: The underseer takes no automated action; it just polls and holds.
+         The overseer reads state on request and reports to Patch in plain
+         language. All decisions go back to Patch.
 
-Level 2: Overseer advances automatically within a stage sequence but stops
-         before each handoff. Presents: "Stage X complete. Advance to Y?"
-         Waits for Patch's explicit go-ahead.
+Level 2: The underseer advances automatically within a stage sequence but
+         stops before each handoff, writing an escalation. The overseer
+         presents it: "Stage X complete. Advance to Y?" and waits for
+         Patch's explicit go-ahead before the underseer proceeds.
 
-Level 3: Overseer runs the full pipeline without stopping, except:
-         - After ux-ui PASS: "Feature ready to merge. Your call."
-         - Any escalation condition
+Level 3: The underseer runs the full pipeline without stopping, except:
+         - After ux-ui PASS: escalates, and the overseer relays
+           "Feature ready to merge. Your call."
+         - Any other escalation condition
 
-Level 4: Overseer runs end-to-end. Merges features into cycle branch after
-         ux-ui PASS. Escalates only on: double kick-back, BLOCKED, empty queue.
+Level 4: The underseer runs end-to-end. Merges features into the cycle
+         branch after ux-ui PASS. Escalates (via the overseer) only on:
+         double kick-back, BLOCKED, empty queue.
 
-Level 5: Same as level 4, PLUS: the overseer processes product-backlog.md through
-         the product agent, one item at a time, interleaved with the dev pipeline.
-         Product-backlog → product agent → build-queue → features → ... → ux-ui,
-         all without Patch's involvement.
+Level 5: Same as level 4, PLUS: the underseer processes product-backlog.md
+         through the product agent, one item at a time, interleaved with the
+         dev pipeline. Product-backlog → product agent → build-queue →
+         features → ... → ux-ui, all without Patch's involvement.
 
          Level 5 flow (interleaved, one item at a time):
          1. If build-queue has QUEUED items: run them through the dev pipeline first
@@ -148,7 +152,7 @@ Level 5: Same as level 4, PLUS: the overseer processes product-backlog.md throug
          3. If found: start product agent for that single item
          4. Product agent writes 1 or more features to build-queue.md,
             marks product-backlog item COMPLETE, sets pipeline-state COMPLETE
-         5. Overseer picks up the new build-queue items and runs them through pipeline
+         5. The underseer picks up the new build-queue items and runs them through pipeline
          6. Repeat from step 2 until both queues are exhausted
 
          Note: one product-backlog item can produce multiple build-queue features.
